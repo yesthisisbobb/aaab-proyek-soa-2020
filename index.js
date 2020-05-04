@@ -48,6 +48,32 @@ app.put("/api/update_profile/:email", async function (req,res) {
     }
 });
 
+app.post("/api/top_up", async function (req,res) {
+    let email = req.body.email;
+    let password = req.body.password;
+    let value = parseInt(req.body.value);
+
+    if (!email) {
+        return res.status(400).send("No email reference!");
+    }
+    if (!password) {
+        return res.status(400).send("Password Required!");
+    }
+
+    let checkUser = await executeQuery(conn, `select * from user where user_email = '${email}' and user_password = '${password}'`);
+    if (checkUser.length < 1) {
+        return res.status(400).send("Email or password invalid!");
+    }
+    let balance = checkUser[0].user_balance;
+
+    let topUp = await executeQuery(conn, `update user set user_balance = '${balance+value}' where user_email = '${email}'`);
+    if(topUp["affectedRows"] > 0){
+        return res.status(200).send("Top Up Successful");
+    }
+    conn.release();
+});
+
+
 app.listen(3000, function (req,res) {
     console.log("Listening on port 3000...");
 });
