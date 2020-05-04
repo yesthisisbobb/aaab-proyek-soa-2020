@@ -101,6 +101,20 @@ app.post("/api/top_up", async function (req,res) {
     conn.release();
 });
 
+app.post("/api/login",async function(req,res){
+    const conn = await getConnection()
+    const email = req.body.email
+    const password = req.body.password
+    const key = req.body.key 
+    let que = `SELECT * FROM user WHERE user_email = '${email}' and user_password = '${password}'`
+    const user = await executeQuery(conn,que)
+    if(user.length == 0) return res.status(400).send({status:400,message:"email or password incorrect!"})
+    
+    if(user[0].user_key != key) return res.status(400).send({status:400,message:"key invalid!"})
+    
+    return res.status(200).send({status:200,message:"login successful!"})
+  })
+
 
 //listener
 app.listen(3000, function (req,res) {
