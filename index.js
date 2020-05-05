@@ -47,10 +47,18 @@ app.post("/api/register", async (req,res)=>{
   let user_phone = req.body.user_phone;
   let user_name = req.body.user_name;
 
+  if(!user_email||!user_password||!user_address||!user_phone||user_name) return res.status(400).send("semua field harus diisi")
   let query = `INSERT INTO user VALUES('${user_email}','${user_password}',${user_balance},'${user_key}','${user_address}','${user_phone}','${user_name}', NOW() + INTERVAL 7 DAY)`;
   let conn = await getConnection();
-  let result = await executeQuery(conn, query);
-  conn.release();
+  
+  try {
+    let result = await executeQuery(conn, query);
+    conn.release();
+  
+  } catch (error) {
+      console.log("error : " +error)
+      return res.status(400).send("email sudah terdaftar!")
+  }
   res.status(200).send("Berhasil Mendaftar");
 });
 
