@@ -175,9 +175,9 @@ app.get("/api/search/movies",async (req,res)=>{
   });
 });
 
+// ID COMMENT (A.I.), ID POST, ID USER, ISI COMMENT, COMMENTED AT, STATUS COMMENT
 // POST COMMENT
 app.post("/api/comment", async function (req, res) {
-  // ID COMMENT (A.I.), ID POST, ID USER, ISI COMMENT, COMMENTED AT, STATUS COMMENT
   let id_post = req.body.id_post, id_user = req.body.id_user, comment = req.body.comment;
 
   if (!id_post) return res.status(400).send("No id_post sent!");
@@ -188,7 +188,7 @@ app.post("/api/comment", async function (req, res) {
   return res.status(200).send("User " + id_user + " commented");
 })
 
-//AMBIL COMMENT
+// AMBIL COMMENT
 app.get("/api/comment/get/:id", async function (req, res) {
   let id = req.params.id;
 
@@ -202,6 +202,7 @@ app.get("/api/comment/get/:id", async function (req, res) {
   return res.status(200).send(getCommentById);
 });
 
+// UPDATE COMMENT
 app.put("/api/comment/:id", async function (req, res) {
   let id = req.params.id, updatedComment = req.body.updatedComment;
 
@@ -219,6 +220,7 @@ app.put("/api/comment/:id", async function (req, res) {
   }
 });
 
+// DELETE COMMENT
 app.delete("/api/comment/:id", async function (req, res) {
   let id = req.params.id;
 
