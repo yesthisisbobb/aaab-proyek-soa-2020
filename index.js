@@ -1,8 +1,11 @@
+// REQUIRE YG NPM JS
 const express = require('express');
 const mysql = require('mysql');
 const jwt = require('jsonwebtoken');
-const hash = require('./hash_string');
 const request = require('request');
+
+// REQUIRE YANG NGAMBIL FILE
+const hash = require('./hash_string');
 
 const app = express();
 
@@ -172,7 +175,63 @@ app.get("/api/search/movies",async (req,res)=>{
   });
 });
 
+// POST COMMENT
+app.post("/api/comment", async function (req, res) {
+  // ID COMMENT (A.I.), ID POST, ID USER, ISI COMMENT, COMMENTED AT, STATUS COMMENT
+  let id_post = req.body.id_post, id_user = req.body.id_user, comment = req.body.comment;
 
+  if (!id_post) return res.status(400).send("No id_post sent!");
+  if (!id_user) return res.status(400).send("No id_user sent!");
+  if (!comment) return res.status(400).send("Comment should not be empty!");
+
+  let insertComment = await executeQuery(conn, `insert into comment values('','${id_post}','${id_user}','${comment}', CURRENT_TIMESTAMP(), 1)`);
+  return res.status(200).send("User " + id_user + " commented");
+})
+
+//AMBIL COMMENT
+app.get("/api/comment/get/:id", async function (req, res) {
+  let id = req.params.id;
+
+  if (!id) {
+    let getAllComment = await executeQuery(conn, `select * from comment`);
+    return res.status(200).send(getAllComment);
+  }
+
+  let getCommentById = await executeQuery(conn, `select * from comment where id_comment=${parseInt(id)}`);
+  if (getCommentById.length < 1) return res.status(404).send("Comment not found");
+  return res.status(200).send(getCommentById);
+});
+
+app.put("/api/comment/:id", async function (req, res) {
+  let id = req.params.id, updatedComment = req.body.updatedComment;
+
+  if (!id) return res.status(400).send("No id sent!");
+  if (!updatedComment) return res.status(400).send("Updated comment is empty, maybe trying to delete?");
+
+  let getCommentById = await executeQuery(conn, `select * from comment where id_comment=${parseInt(id)}`);
+  if (getCommentById.length < 1) return res.status(404).send("Comment not found");
+
+  try {
+    let updateComment = await executeQuery(conn, `update comment set content_comment='${updatedComment}' where id_comment=${parseInt(id)}`);
+    return res.status(200).send("Database updated, affected rows: " + updateComment["affectedRows"]);
+  } catch (error) {
+    return res.status(400).send(error);
+  }
+});
+
+app.delete("/api/comment/:id", async function (req, res) {
+  let id = req.params.id;
+
+  let getCommentById = await executeQuery(conn, `select * from comment where id_comment=${parseInt(id)}`);
+  if (getCommentById.length < 1) return res.status(404).send("Comment not found");
+
+  try {
+    let deleteComment = await executeQuery(conn, `update comment set status_comment=0 where id_comment=${parseInt(id)}`);
+    return res.status(200).send("Database updated, affected rows: " + deleteComment["affectedRows"]);
+  } catch (error) {
+    return res.status(400).send(error);
+  }
+});
 
 //listener
 app.listen(3000, function (req,res) { console.log("Listening on port 3000..."); });
