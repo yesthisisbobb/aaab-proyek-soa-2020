@@ -164,11 +164,16 @@ app.delete("/api/deleteWatchlist",async (req,res)=>{
 
 app.get("/api/search/movies",async (req,res)=>{
   let keyword = req.query.keyword;
-  let genre = req.query.genre;
   let type = req.query.type;
   let options = {
     'method': 'GET',
     'url': `https://api.themoviedb.org/3/search/movie?api_key=${process.env.TMDB_API_KEY}&query=${keyword}`,
+  };
+  if (type == "tv series" || type == "series" || type == "tv") {
+    options = {
+      'method': 'GET',
+      'url': `https://api.themoviedb.org/3/search/tv?api_key=${process.env.TMDB_API_KEY}&query=${keyword}`,
+    };
   };
 
   request(options, function (error, response) {
