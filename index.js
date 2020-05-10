@@ -49,10 +49,13 @@ app.post("/api/register", async (req,res)=>{
   let user_balance = 0;
   let user_key = hash();
   let user_address = req.body.user_address;
+  let town = req.body.town;
   let user_phone = req.body.user_phone;
   let user_name = req.body.user_name;
 
-  if(!user_email||!user_password||!user_address||!user_phone||user_name) return res.status(400).send("semua field harus diisi")
+
+  if(!user_email||!user_password||!user_address||!user_phone||!user_name||!town) return res.status(400).send("semua field harus diisi")
+  user_address = user_address+","+town
   let query = `INSERT INTO user VALUES('${user_email}','${user_password}',${user_balance},'${user_key}','${user_address}','${user_phone}','${user_name}', NOW() + INTERVAL 7 DAY)`;
   let conn = await getConnection();
 
@@ -246,7 +249,7 @@ app.delete("/api/comment/:id", async function (req, res) {
 
 
 app.get('/api/jadwal',async function(req,res){
-    
+
 })
 
 
@@ -262,13 +265,59 @@ app.get('/api/test_geocode',async function(req,res){
     longitude : hasil.longt,
     latitude : hasil.latt
   })
-
-
-
-
 })
 
 
+function search_movies(keyword){
+  return new Promise(function(resolve,reject){
+    key = process.env.TMDB_API_KEY;
+    let options = {
+      'method': 'GET',
+      'url': `https://api.themoviedb.org/3/search/movie?api_key=${key}&query=${keyword}`,
+    };
+    request(options, async function (error, response) { 
+        if(error) reject({"error":error})
+        else{
+            try {
+                let arr_hasil = []
+                let tmp = (await JSON.parse(response.body)).results
+                if(tmp.length > 0){
+                  for(let i = 0;i<tmp.length;i++){
+                    let detail = await get_movie_detail(tmp.id)
+                    arr_hasil.push(detail.imdb_id)
+                  }
+                }
+                
+                resolve(tmp);
+            } catch (error) {
+                reject({error:error})
+            }
+            
+        }
+    });
+  })
+}
+
+function get_movie_detail(id){
+  return new Promise(function(resolve,reject){
+    key = process.env.TMDB_API_KEY;
+    let options = {
+      'method': 'GET',
+      'url': `https://api.themoviedb.org/3/movie/${id}?api_key=${key}`,
+    };
+    request(options, async function (error, response) { 
+        if(error) reject({"error":error})
+        else{
+            try {
+                resolve(await JSON.parse(response.body));
+            } catch (error) {
+                reject({error:error})
+            }
+            
+        }
+    });
+  })
+}
 
 
 
@@ -276,7 +325,7 @@ app.get('/api/test_geocode',async function(req,res){
 //untuk dapat Latitute Longitute
 function get_location(location){
     return new Promise(function(resolve,reject){
-        key = process.env.API_KEY_GEOCODE;
+        key = process.env.GEOCODE_API_KEY;
         let options = {
           'method': 'GET',
           'url': `https://geocode.xyz?auth=${key}&locate=${location}&json=1`,
