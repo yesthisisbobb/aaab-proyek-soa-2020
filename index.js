@@ -3,6 +3,7 @@ const express = require('express');
 const mysql = require('mysql');
 const jwt = require('jsonwebtoken');
 const request = require('request');
+const http = require('http');
 
 // REQUIRE YANG NGAMBIL FILE
 const hash = require('./hash_string');
@@ -236,6 +237,123 @@ app.delete("/api/comment/:id", async function (req, res) {
     return res.status(400).send(error);
   }
 });
+
+
+
+app.get('/api/jadwal',async function(req,res){
+  let query = req.query.judul
+  let email = req.body.email
+  let password = req.body.password
+  const conn = await getConnection()
+  let que = `SELECT * FROM user WHERE user_email = '${email}' and user_password = '${password}'`
+  const user = await executeQuery(conn,que)
+  if(user.length==0) return res.status(400).send({status:400,message:"Email or password invalid!"})
+
+  let loc_tmp = await get_location(user[0].user_address)
+  let longt = loc_tmp.longt
+  let latt = loc_tmp.latt
+
+  key = "";
+  let options = {
+    'method': 'GET',
+    'url': `https://api-gate2.movieglu.com?query=${query}`,
+    'headers' : {
+      "Username" :	process.env.USERNAME_MOVIEGLU,
+      "x-api-key" :	process.env.API_KEY_MOVIEGLU,
+      "Territory" :	"US",
+      "Authorization" :	"Basic SVNUVDo2MUVsT3dFdkp2UW8=",
+      "Request limit" :	'75'
+    }
+
+  };
+  request(options, async function (error, response) { 
+      if(error) return {"error":error}
+      else{
+          try {
+              let data = (JSON.parse(response.body));
+              let film = data.film;
+              if(film.length!=0){
+                let arr_cinema = []
+                film.forEach((e)=>{
+                  let id = e.film_id
+                  let options_film = {
+                    'method': 'GET',
+                    'url': `https://api-gate2.movieglu.com?query=${query}`,
+                    'headers' : {
+                      "Username" :	process.env.USERNAME_MOVIEGLU,
+                      "x-api-key" :	process.env.API_KEY_MOVIEGLU,
+                      "Territory" :	"US",
+                      "Authorization" :	"Basic SVNUVDo2MUVsT3dFdkp2UW8=",
+                      "Request limit" :	'75',
+                      'geolocation' : latt+";"+longt
+                    }
+                  };
+                  request(options, async function (error, response) { 
+                    if(error) return {"error":error}
+                    else{
+                          try {
+                            
+                            arr_cinema.push(JSON.parse(response.body));
+                          } catch (error) {
+                              return ({error:error})
+                          }
+                        
+                        }
+                    });
+                })
+
+
+                
+              }
+              else{
+                return res.status(200).send({status:200,message:"film tidak ditemukan!"})
+              }
+          
+          
+            } catch (error) {
+              return ({error:error})
+          }
+
+          
+          
+      }
+  });
+
+})
+
+
+
+
+
+
+
+
+
+
+
+//untuk dapat Latitute Longitute
+function get_location(location){
+    key = process.env.API_KEY_GEOCODE;
+    let options = {
+      'method': 'GET',
+      'url': `https://geocode.xyz?auth=${key}&locate=${location}&json=1`,
+    };
+    request(options, async function (error, response) { 
+        if(error) return {"error":error}
+        else{
+            try {
+                return (JSON.parse(response.body));
+            } catch (error) {
+                return ({error:error})
+            }
+            
+        }
+    });
+}
+
+
+
+
 
 //listener
 app.listen(3000, function (req,res) { console.log("Listening on port 3000..."); });
