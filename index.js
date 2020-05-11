@@ -251,7 +251,34 @@ app.delete("/api/comment/:id", async function (req, res) {
 app.get('/api/jadwal',async function(req,res){
 
 })
-
+function getTrailer(id){
+  return new Promise(function(resolve,reject){
+      var options = {
+          'method': 'GET',
+          'url': `https://api.themoviedb.org/3/movie/${id}/videos?api_key=${process.env.TMDB_API_KEY}&language=en-US`,
+        };
+        request(options, function (error, response) { 
+          if (error) reject(new Error(error));
+          else resolve(response.body);
+      });
+  })  
+}
+app.get('/api/trailer/:id',async function(req,res){
+  let id = req.params.id;
+  let temp = [];
+  try {
+    const movie = JSON.parse(await getTrailer(id));
+    const result = movie.results;
+    for (let i = 0; i < result.length; i++) {
+      if(result[i].site=="YouTube"){
+        temp.push("Link : https://www.youtube.com/watch?v="+result[i].key);
+      }
+    }
+    res.status(200).send(temp);
+  } catch (error) {
+    res.status(500).send(error);
+}
+});
 
 
 
@@ -266,6 +293,20 @@ app.get('/api/test_geocode',async function(req,res){
     latitude : hasil.latt
   })
 })
+
+app.post('/api/pesantiket',async function(req,res){
+  //user_email	movie	seat	theater	tanggal	jam	studio
+  const conn = await getConnection();
+  let user_email = req.body.email;
+  let movie = req.body.movie;
+  let seat = req.body.seat;
+  let theater = req.body.theater;
+  let tanggal = req.body.tanggal;
+  let jam = req.body.jam;
+  let studio = req.body.studio;
+  await executeQuery(conn,`insert into ticket values('${user_email}','${movie}','${seat}','${theater}','${tanggal}','${jam}','${studio}')`);
+  return res.status(200).send("Pemesanan Berhasil");
+});
 
 
 function search_movies(keyword){
@@ -338,7 +379,6 @@ function get_location(location){
                 } catch (error) {
                     reject({error:error})
                 }
-                
             }
         });
     })
