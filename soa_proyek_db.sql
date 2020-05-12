@@ -1,14 +1,13 @@
 -- phpMyAdmin SQL Dump
--- version 4.9.0.1
+-- version 5.0.2
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: May 07, 2020 at 10:33 AM
--- Server version: 10.4.6-MariaDB
--- PHP Version: 7.3.8
+-- Generation Time: May 12, 2020 at 05:48 AM
+-- Server version: 10.4.11-MariaDB
+-- PHP Version: 7.4.5
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
-SET AUTOCOMMIT = 0;
 START TRANSACTION;
 SET time_zone = "+00:00";
 
@@ -30,7 +29,6 @@ USE `soa_proyek_db`;
 -- Table structure for table `comment`
 --
 
-DROP TABLE IF EXISTS `comment`;
 CREATE TABLE `comment` (
   `id_comment` int(7) NOT NULL,
   `idpost_comment` varchar(255) NOT NULL,
@@ -46,7 +44,6 @@ CREATE TABLE `comment` (
 -- Table structure for table `user`
 --
 
-DROP TABLE IF EXISTS `user`;
 CREATE TABLE `user` (
   `user_email` varchar(255) NOT NULL,
   `user_password` varchar(255) NOT NULL,
@@ -64,6 +61,24 @@ CREATE TABLE `user` (
 
 INSERT INTO `user` (`user_email`, `user_password`, `user_balance`, `user_key`, `user_address`, `user_phone`, `user_name`, `expired_date`) VALUES
 ('abed@gmail.com', '123', 0, 'Rot0HUN5jMoDTtpf72hK', 'JL.rumahnya alfon', '14045', 'Alfonsus Yves', '2020-05-11');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `watchlist`
+--
+
+CREATE TABLE `watchlist` (
+  `email_user` varchar(255) NOT NULL,
+  `movie_id` varchar(50) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+--
+-- Dumping data for table `watchlist`
+--
+
+INSERT INTO `watchlist` (`email_user`, `movie_id`) VALUES
+('abed@gmail.com', '1771');
 
 --
 -- Indexes for dumped tables
