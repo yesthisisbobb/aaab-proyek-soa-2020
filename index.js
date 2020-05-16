@@ -4,6 +4,7 @@ const mysql = require('mysql');
 const jwt = require('jsonwebtoken');
 const request = require('request');
 const http = require('http');
+const jwt = require("jsonwebtoken");
 
 // REQUIRE YANG NGAMBIL FILE
 const hash = require('./hash_string');
@@ -52,11 +53,19 @@ app.post("/api/register", async (req,res)=>{
   let town = req.body.town;
   let user_phone = req.body.user_phone;
   let user_name = req.body.user_name;
-
-
+  
   if(!user_email||!user_password||!user_address||!user_phone||!user_name||!town) return res.status(400).send("semua field harus diisi")
   user_address = user_address+","+town
-  let query = `INSERT INTO user VALUES('${user_email}','${user_password}',${user_balance},'${user_key}','${user_address}','${user_phone}','${user_name}', NOW() + INTERVAL 7 DAY)`;
+  const token = jwt.sign({    
+      "email":email,
+      "name" : user_name
+  }   ,"proyek_soa", {
+      expiresIn : '30d'
+  });
+
+  
+  
+  let query = `INSERT INTO user VALUES('${user_email}','${user_password}',${user_balance},'${token}','${user_address}','${user_phone}','${user_name}', NOW() + INTERVAL 7 DAY)`;
   let conn = await getConnection();
 
   try {
@@ -92,6 +101,7 @@ app.put("/api/update_profile/:email", async function (req,res) {
     }
 });
 
+
 app.post("/api/top_up", async function (req,res) {
     let email = req.body.email;
     let password = req.body.password;
@@ -111,8 +121,47 @@ app.post("/api/top_up", async function (req,res) {
     let balance = checkUser[0].user_balance;
 
     let topUp = await executeQuery(conn, `update user set user_balance = '${balance+value}' where user_email = '${email}'`);
-    if(topUp["affectedRows"] > 0){
-        return res.status(200).send("Top Up Successful");
+      if(topUp["affectedRows"] > 0){
+        let expired = false
+        let user = {}
+        //cek apakah expired
+        try{
+          user = jwt.verify(checkUser[0].user_key,"proyek_soa");
+        }catch(err){
+          //401 not authorized
+          expired = true
+        }
+        let new_token
+        if(expired){
+            //kalau expired buat key baru dengan expiration date 30 hari
+            new_token = jwt.sign({    
+              "email":email,
+              "name" : user_name
+            },"proyek_soa", {
+                expiresIn : '30d'
+            });
+        }
+        else{
+            //kalau tidak expired buat token baru dengan expiration date 30 hari ditambah dengan sisa hari sebelum expiration date
+            let time = (new Date().getTime()/1000)-user.iat
+            time+=(60*60*24*30)
+            new_token = jwt.sign({    
+              "email":email,
+              "name" : user_name
+            },"proyek_soa", {
+                expiresIn : time+'d'
+            });
+        }
+
+        let que = `
+        UPDATE user 
+        SET user_token = '${new_token}'
+        WHERE user_email = '${email}' and user_password = '${password}'`
+
+        let update_token = await executeQuery(conn,que)
+        if(update_token.affectedRows>0)return res.status(200).send("Top Up Successful");
+        
+        
     }
     conn.release();
 });
@@ -121,15 +170,52 @@ app.post("/api/login",async function(req,res){
     const conn = await getConnection()
     const email = req.body.email
     const password = req.body.password
-    const key = req.body.key
     let que = `SELECT * FROM user WHERE user_email = '${email}' and user_password = '${password}'`
     const user = await executeQuery(conn,que)
     if(user.length == 0) return res.status(400).send({status:400,message:"email or password incorrect!"})
 
-    if(user[0].user_key != key) return res.status(400).send({status:400,message:"key invalid!"})
+    let token = user[0].user_key
+    
+    let user = {};
+    try{
+        user = jwt.verify(token,"proyek_soa");
+    }catch(err){
+        //401 not authorized
+        return res.status(400).send("Token expired");
+    }
+    // if((new Date().getTime()/1000)-user.iat>3600){
+    //     return res.status(400).send("Token expired");
+    // }
 
-    return res.status(200).send({status:200,message:"login successful!"})
+    return res.status(200).send({status:200,message:"login successful!",key:token})
   })
+
+app.get('/api/checkExpirationDate',async function(req,res){
+    let email = req.body.email
+    let password = req.body.password
+    let token = req.header("x-auth-token")
+
+    if(!token) return res.status(400).send("invalid key")
+
+    const conn = await getConnection()
+    let que_user = `SELECT * FROM user WHERE user_email = '${email}' and user_password = '${password}'`
+    let user = await executeQuery(conn.que_user)
+    if(user.length==0) return res.status(400).send({status:400,message:"invalid email or password"})
+    let token = user[0].user_key
+    
+    let user = {};
+    try{
+        user = jwt.verify(token,"proyek_soa");
+    }catch(err){
+        //401 not authorized
+        return res.status(200).send({status:200,message:"token expired!"});
+    }
+    let date = new Date(user.iat)
+    return res.status(200).send({status:200,message:date})
+
+
+})  
+
 
 app.post("/api/addWatchlist", async (req,res)=>{
   let email_user = req.body.user_email;
@@ -250,7 +336,12 @@ app.delete("/api/comment/:id", async function (req, res) {
 
 app.get('/api/jadwal',async function(req,res){
 
+
+
+
 })
+
+
 function getTrailer(id){
   return new Promise(function(resolve,reject){
       var options = {
