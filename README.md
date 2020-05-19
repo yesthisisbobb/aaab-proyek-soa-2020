@@ -13,3 +13,4 @@ POST    localhost:3000/api/comment <br>
 GET     localhost:3000/api/comment/get/:id <br>
 PUT     localhost:3000/api/comment/:id <br>
 DELETE  localhost:3000/api/comment/:id <br>
+GET     localhost:3000/api/checkExpirationDate <br>
