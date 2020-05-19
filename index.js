@@ -198,27 +198,25 @@ app.post("/api/login",async function(req,res){
   })
 
 app.get('/api/checkExpirationDate',async function(req,res){
-    let email = req.body.email
-    let password = req.body.password
+    //let email = req.body.email
+    //let password = req.body.password
+    let key = req.body.key
     // let token = req.header("x-auth-token")
 
-    if(!token) return res.status(400).send("invalid key")
+    //if(!token) return res.status(400).send("invalid key")
 
     const conn = await getConnection()
-    let que_user = `SELECT * FROM user WHERE user_email = '${email}' and user_password = '${password}'`
-    let user = await executeQuery(conn.que_user)
-    if(user.length==0) return res.status(400).send({status:400,message:"invalid email or password"})
+    let que_user = `SELECT * FROM user WHERE user_key = '${key}'`
+    let user = await executeQuery(conn,que_user)
+    if(user.length==0) return res.status(400).send(message[400])
     let token = user[0].user_key
-    
-    let _user = {};
-    try{
-        _user = jwt.verify(token,"proyek_soa");
-    }catch(err){
-        //401 not authorized
-        return res.status(200).send({status:200,message:"token expired!"});
-    }
-    let date = new Date(_user.iat)
-    return res.status(200).send({status:200,message:date})
+    let exp_date = new Date(user[0].expired_date)
+    let now = new Date(Date.now())
+    let compare = Math.abs(exp_date - now);
+    let day = Math.round((compare/1000)/(3600*24))
+    console.log("exp date : "+exp_date.getDate()+"-"+exp_date.getMonth()+"-"+exp_date.getFullYear())
+    console.log("today : "+now.getDate()+"-"+now.getMonth()+"-"+now.getFullYear())
+    return res.status(200).send({status:200,message:day+" days"})
 
 
 })  
