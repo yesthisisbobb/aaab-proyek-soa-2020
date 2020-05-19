@@ -96,6 +96,7 @@ app.post("/api/top_up", async function (req,res) {
     let email = req.body.email;
     let password = req.body.password;
     let value = parseInt(req.body.value);
+    console.log(value);
 
     if (!email) {
         return res.status(400).send("No email reference!");
@@ -131,9 +132,13 @@ app.post("/api/login",async function(req,res){
     return res.status(200).send({status:200,message:"login successful!"})
   })
 
-app.post("/api/addWatchlist", async (req,res)=>{
+// add watchlist
+app.post("/api/watchlist", async (req,res)=>{
   let email_user = req.body.user_email;
   let movie_id = req.body.movie_id;
+
+  if(email_user === undefined){ return res.status(400).send("email user tidak ada"); }
+  if(movie_id === undefined){ return res.status(400).send("movie id tidak ada"); }
 
   let query = `INSERT INTO watchlist VALUES('${email_user}','${movie_id}')`;
   let conn = await getConnection();
@@ -143,18 +148,20 @@ app.post("/api/addWatchlist", async (req,res)=>{
   res.status(200).send("Add to Watchlist");
 });
 
+// get watchlist
 app.get("/api/watchlist",async (req,res)=>{
   let user_email = req.query.user;
   let query = `SELECT movie_id FROM watchlist WHERE email_user='${user_email}'`;
   let conn = await getConnection();
   let result = await executeQuery(conn, query);
   conn.release();
-  if(Object.keys(result).length == 0) return res.status(200).send("anda belum memiliki watchlist");
+  if(Object.keys(result).length == 0) return res.status(404).send("anda belum memiliki watchlist");
 
   res.status(200).send(result);
 });
 
-app.delete("/api/deleteWatchlist",async (req,res)=>{
+// delete watchlist
+app.delete("/api/watchlist",async (req,res)=>{
   let email_user = req.body.user_email;
   let movie_id = req.body.movie_id;
 
@@ -246,11 +253,10 @@ app.delete("/api/comment/:id", async function (req, res) {
   }
 });
 
-
-
 app.get('/api/jadwal',async function(req,res){
 
-})
+});
+
 function getTrailer(id){
   return new Promise(function(resolve,reject){
       var options = {
@@ -263,6 +269,7 @@ function getTrailer(id){
       });
   })  
 }
+
 app.get('/api/trailer/:id',async function(req,res){
   let id = req.params.id;
   let temp = [];
@@ -277,7 +284,7 @@ app.get('/api/trailer/:id',async function(req,res){
     res.status(200).send(temp);
   } catch (error) {
     res.status(500).send(error);
-}
+  } 
 });
 
 
@@ -360,9 +367,6 @@ function get_movie_detail(id){
   })
 }
 
-
-
-
 //untuk dapat Latitute Longitute
 function get_location(location){
     return new Promise(function(resolve,reject){
@@ -384,10 +388,6 @@ function get_location(location){
     })
     
 }
-
-
-
-
 
 //listener
 app.listen(3000, function (req,res) { console.log("Listening on port 3000..."); });
