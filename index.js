@@ -10,6 +10,19 @@ const hash = require('./hash_string');
 
 const app = express();
 
+//message return
+let message = []
+message[200] = {status:200,message:"OK"}
+message[201] = {status:201,message:"Created"}
+message[500] = {status:500,message:"Internal Error"}
+message[400] = {status:400,message:"Bad Request"}
+message[401] = {status:401,message:"Unauthorized"}
+message[404] = {status:404,message:"Not Found"}
+message[409] = {status:409,message:"User has already registered"}
+message[426] = {status:426,message:"Upgrade Required"}
+
+
+
 //untuk mengakses .env
 require("dotenv").config();
 
@@ -49,22 +62,19 @@ app.post("/api/register", async (req,res)=>{
   let user_balance = 0;
   let user_key = hash();
   let user_address = req.body.user_address;
-  let town = req.body.town;
   let user_phone = req.body.user_phone;
   let user_name = req.body.user_name;
   
-  if(!user_email||!user_password||!user_address||!user_phone||!user_name||!town) return res.status(400).send("semua field harus diisi")
-  user_address = user_address+","+town
+  if(!user_email||!user_password||!user_address||!user_phone||!user_name) return res.status(400).send(message[400])
+  
   const token = jwt.sign({    
-      "email":email,
+      "email":user_email,
       "name" : user_name
-  }   ,"proyek_soa", {
-      expiresIn : '30d'
-  });
+  }   ,"proyek_soa");
 
   
   
-  let query = `INSERT INTO user VALUES('${user_email}','${user_password}',${user_balance},'${token}','${user_address}','${user_phone}','${user_name}', NOW() + INTERVAL 7 DAY)`;
+  let query = `INSERT INTO user VALUES('${user_email}','${user_password}',${user_balance},'${token}','${user_address}','${user_phone}','${user_name}', NOW() + INTERVAL 7 DAY,'')`;
   let conn = await getConnection();
 
   try {
@@ -73,9 +83,9 @@ app.post("/api/register", async (req,res)=>{
 
   } catch (error) {
       console.log("error : " +error)
-      return res.status(400).send("email sudah terdaftar!")
+      return res.status(409).send(message[409])
   }
-  res.status(200).send("Berhasil Mendaftar");
+  res.status(201).send(message[201]);
 });
 
 app.put("/api/update_profile/:email", async function (req,res) {
@@ -120,48 +130,48 @@ app.post("/api/top_up", async function (req,res) {
     let balance = checkUser[0].user_balance;
 
     let topUp = await executeQuery(conn, `update user set user_balance = '${balance+value}' where user_email = '${email}'`);
-      if(topUp["affectedRows"] > 0){
-        let expired = false
-        let user = {}
-        //cek apakah expired
-        try{
-          user = jwt.verify(checkUser[0].user_key,"proyek_soa");
-        }catch(err){
-          //401 not authorized
-          expired = true
-        }
-        let new_token
-        if(expired){
-            //kalau expired buat key baru dengan expiration date 30 hari
-            new_token = jwt.sign({    
-              "email":email,
-              "name" : user_name
-            },"proyek_soa", {
-                expiresIn : '30d'
-            });
-        }
-        else{
-            //kalau tidak expired buat token baru dengan expiration date 30 hari ditambah dengan sisa hari sebelum expiration date
-            let time = (new Date().getTime()/1000)-user.iat
-            time+=(60*60*24*30)
-            new_token = jwt.sign({    
-              "email":email,
-              "name" : user_name
-            },"proyek_soa", {
-                expiresIn : time+'d'
-            });
-        }
+    //   if(topUp["affectedRows"] > 0){
+    //     let expired = false
+    //     let user = {}
+    //     //cek apakah expired
+    //     try{
+    //       user = jwt.verify(checkUser[0].user_key,"proyek_soa");
+    //     }catch(err){
+    //       //401 not authorized
+    //       expired = true
+    //     }
+    //     let new_token
+    //     if(expired){
+    //         //kalau expired buat key baru dengan expiration date 30 hari
+    //         new_token = jwt.sign({    
+    //           "email":email,
+    //           "name" : user_name
+    //         },"proyek_soa", {
+    //             expiresIn : '30d'
+    //         });
+    //     }
+    //     else{
+    //         //kalau tidak expired buat token baru dengan expiration date 30 hari ditambah dengan sisa hari sebelum expiration date
+    //         let time = (new Date().getTime()/1000)-user.iat
+    //         time+=(60*60*24*30)
+    //         new_token = jwt.sign({    
+    //           "email":email,
+    //           "name" : user_name
+    //         },"proyek_soa", {
+    //             expiresIn : time+'d'
+    //         });
+    //     }
 
-        let que = `
-        UPDATE user 
-        SET user_token = '${new_token}'
-        WHERE user_email = '${email}' and user_password = '${password}'`
+    //     let que = `
+    //     UPDATE user 
+    //     SET user_token = '${new_token}'
+    //     WHERE user_email = '${email}' and user_password = '${password}'`
 
-        let update_token = await executeQuery(conn,que)
-        if(update_token.affectedRows>0)return res.status(200).send("Top Up Successful");
+    //     let update_token = await executeQuery(conn,que)
+    //     if(update_token.affectedRows>0)return res.status(200).send("Top Up Successful");
         
         
-    }
+    // }
     conn.release();
 });
 
@@ -171,28 +181,26 @@ app.post("/api/login",async function(req,res){
     const password = req.body.password
     let que = `SELECT * FROM user WHERE user_email = '${email}' and user_password = '${password}'`
     const user = await executeQuery(conn,que)
-    if(user.length == 0) return res.status(400).send({status:400,message:"email or password incorrect!"})
-
-    let token = user[0].user_key
+    if(user.length == 0) return res.status(400).send(message[400])
+    let user_date = new Date(user[0].expired_date)
+    let today_tmp = Date.now();
+    let today = new Date(today_tmp)
+    let today_str = today.getFullYear()+"-"+(today.getMonth()+1)+"-"+today.getDate()
     
-    let user = {};
-    try{
-        user = jwt.verify(token,"proyek_soa");
-    }catch(err){
-        //401 not authorized
-        return res.status(400).send("Token expired");
-    }
+    if(today>user_date) return res.status(426).send(message[426])
+
+    console.log(user[0].expired_date)
     // if((new Date().getTime()/1000)-user.iat>3600){
     //     return res.status(400).send("Token expired");
     // }
 
-    return res.status(200).send({status:200,message:"login successful!",key:token})
+    return res.status(200).send(user[0].user_key)
   })
 
 app.get('/api/checkExpirationDate',async function(req,res){
     let email = req.body.email
     let password = req.body.password
-    let token = req.header("x-auth-token")
+    // let token = req.header("x-auth-token")
 
     if(!token) return res.status(400).send("invalid key")
 
@@ -202,14 +210,14 @@ app.get('/api/checkExpirationDate',async function(req,res){
     if(user.length==0) return res.status(400).send({status:400,message:"invalid email or password"})
     let token = user[0].user_key
     
-    let user = {};
+    let _user = {};
     try{
-        user = jwt.verify(token,"proyek_soa");
+        _user = jwt.verify(token,"proyek_soa");
     }catch(err){
         //401 not authorized
         return res.status(200).send({status:200,message:"token expired!"});
     }
-    let date = new Date(user.iat)
+    let date = new Date(_user.iat)
     return res.status(200).send({status:200,message:date})
 
 
