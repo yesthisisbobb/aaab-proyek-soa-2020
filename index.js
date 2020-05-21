@@ -233,7 +233,7 @@ app.post("/api/login",async function(req,res){
 app.get('/api/checkExpirationDate',async function(req,res){
     //let email = req.body.email
     //let password = req.body.password
-    let key = req.body.key
+    let key = req.query.key
     // let token = req.header("x-auth-token")
 
     //if(!token) return res.status(400).send("invalid key")
@@ -254,7 +254,51 @@ app.get('/api/checkExpirationDate',async function(req,res){
 
 })  
 
+//GET REMINDER BASED ON USER'S WATCHLIST
+app.get('/api/reminderMovie',async function(req,res){
+  let key = req.query.key
+  if(!key) return res.status(401).send(message[401])
 
+  let user = {}
+  //cek apakah expired
+  try{
+    user = jwt.verify(key,"proyek_soa");
+  }catch(err){
+    //401 not authorized
+    return res.status(401).send(message[401])
+  }
+  console.log(user)
+  const conn = await getConnection()
+  let que = `SELECT movie_id FROM watchlist WHERE email_user = '${user.email}'`
+  const movies_id = await executeQuery(conn,que)
+
+  console.log(movies_id)
+  let hasil = []
+  for(let i = 0;i < movies_id.length;i++){
+    const tmp = await get_movie_detail(movies_id[i].movie_id)
+    let release_date = new Date(tmp.release_date)
+    let today = new Date(Date.now())
+    console.log(release_date)
+    //console.log(today)
+    if(today>release_date) console.log("released")
+    else{
+      let obj = {
+        title : tmp.original_title,
+        genres : tmp.genres,
+        release_date : tmp.release_date
+      }
+      hasil.push(obj)
+    }
+    
+  }
+  
+  console.log(hasil)
+
+  return res.status(200).send(hasil)
+
+})
+
+//ADD WATCHLIST
 app.post("/api/watchlist", async (req,res)=>{
   let email_user = req.body.user_email;
   let movie_id = req.body.movie_id;
@@ -267,6 +311,7 @@ app.post("/api/watchlist", async (req,res)=>{
   res.status(200).send("Add to Watchlist");
 });
 
+//GET WATCHLIST
 app.get("/api/watchlist",async (req,res)=>{
   let user_email = req.query.user;
   let query = `SELECT movie_id FROM watchlist WHERE email_user='${user_email}'`;
@@ -278,6 +323,7 @@ app.get("/api/watchlist",async (req,res)=>{
   res.status(200).send(result);
 });
 
+//DELETE WATCHLIST
 app.delete("/api/watchlist",async (req,res)=>{
   let email_user = req.body.user_email;
   let movie_id = req.body.movie_id;
@@ -290,6 +336,7 @@ app.delete("/api/watchlist",async (req,res)=>{
   res.status(200).send("Delete From Watchlist");
 });
 
+// SEARCH MOVIE
 app.get("/api/search/movies",async (req,res)=>{
   let keyword = req.query.keyword;
   let type = req.query.type;
@@ -371,13 +418,6 @@ app.delete("/api/comment/:id", async function (req, res) {
 });
 
 
-
-app.get('/api/jadwal',async function(req,res){
-
-
-
-
-})
 
 
 function getTrailer(id){
@@ -537,6 +577,7 @@ function search_movies(keyword){
             try {
                 let arr_hasil = []
                 let tmp = (await JSON.parse(response.body)).results
+                
                 if(tmp.length > 0){
                   for(let i = 0;i<tmp.length;i++){
                     let detail = await get_movie_detail(tmp.id)
@@ -553,6 +594,40 @@ function search_movies(keyword){
     });
   })
 }
+
+function search_movie_by_id(id){
+  return new Promise(function(resolve,reject){
+    key = process.env.TMDB_API_KEY;
+    let options = {
+      'method': 'GET',
+      'url': `https://api.themoviedb.org/3/find/tt${id}?api_key=${key}&external_source=imdb_id`,
+    };
+    request(options, async function (error, response) { 
+        if(error) reject({"error":error})
+        else{
+            try {
+                let arr_hasil = []
+                let tmp = (await JSON.parse(response.body))
+                console.log(tmp)
+                if(tmp.length > 0){
+                  for(let i = 0;i<tmp.length;i++){
+                    let detail = await get_movie_detail(tmp.id)
+                    arr_hasil.push(detail.imdb_id)
+                  }
+                }
+                
+                resolve(tmp);
+            } catch (error) {
+                reject({error:error})
+            }
+            
+        }
+    });
+  })
+}
+
+
+
 
 function get_movie_detail(id){
   return new Promise(function(resolve,reject){
