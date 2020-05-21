@@ -3,12 +3,17 @@ const express = require('express');
 const mysql = require('mysql');
 const jwt = require('jsonwebtoken');
 const request = require('request');
+const multer = require('multer');
 const http = require('http');
+const path = require('path');
+
 
 // REQUIRE YANG NGAMBIL FILE
 const hash = require('./hash_string');
 
 const app = express();
+
+app.use('/public/uploads/', express.static('./public/uploads'));
 
 //message return
 let message = []
@@ -54,6 +59,34 @@ function getConnection() {
       else{ resolve(conn); }
     });
   });
+}
+
+const storage = multer.diskStorage({
+  destination : function(req,file,callback){
+      callback(null,"./public/uploads");
+  },
+  filename : function (req,file,callback){
+      const filename = file.originalname.split(".");
+      const extension = filename[1];
+      callback(null,Date.now() + "." + extension);
+  }
+});
+const uploads = multer({
+  storage : storage,
+  fileFilter: function(req,file,callback){
+      checkFileType(file,callback);
+  }
+});
+
+function checkFileType(file,callback){
+  const filetypes= /jpeg|jpg|png/;
+  const extname=filetypes.test(path.extname(file.originalname).toLowerCase());
+  const mimetype=filetypes.test(file.mimetype);
+  if(mimetype && extname){
+      return callback(null,true);
+  }else{
+      callback('Invalid Format!!!');
+  }
 }
 
 app.post("/api/register", async (req,res)=>{
@@ -361,6 +394,16 @@ function getTrailer(id){
 }
 app.get('/api/trailer/:id',async function(req,res){
   let id = req.params.id;
+  let key = req.query.key;
+  let con = await getConnection(); 
+  if(!key){
+    return res.status(404).send("API Key not found! Register to get your API key!");
+  }
+  let checkkey = await executeQuery(conn, `select * from user where user_key='${key}'`);
+  if(checkkey.length==0){
+    return res.status(404).send("Invalid API Key!");
+  }
+
   let temp = [];
   try {
     const movie = JSON.parse(await getTrailer(id));
@@ -373,10 +416,8 @@ app.get('/api/trailer/:id',async function(req,res){
     res.status(200).send(temp);
   } catch (error) {
     res.status(500).send(error);
-}
+  }
 });
-
-
 
 app.get('/api/test_geocode',async function(req,res){
   let address = 'Green Semanggi Mangrove'
@@ -389,19 +430,38 @@ app.get('/api/test_geocode',async function(req,res){
     latitude : hasil.latt
   })
 })
-
-app.post('/api/pesantiket',async function(req,res){
-  //user_email	movie	seat	theater	tanggal	jam	studio
-  const conn = await getConnection();
-  let user_email = req.body.email;
-  let movie = req.body.movie;
-  let seat = req.body.seat;
-  let theater = req.body.theater;
-  let tanggal = req.body.tanggal;
-  let jam = req.body.jam;
-  let studio = req.body.studio;
-  await executeQuery(conn,`insert into ticket values('${user_email}','${movie}','${seat}','${theater}','${tanggal}','${jam}','${studio}')`);
-  return res.status(200).send("Pemesanan Berhasil");
+// app.post("/uploadBerita",uploads.single("gambar"), async function(req,res){
+//   const conn= await getConnection();
+//   const judul=req.body.judul;
+//   const kategori=req.body.kategori;
+//   const isiberita = req.body.isiberita;
+//   var options = {month:'short',day: '2-digit',minute:'2-digit',hour:'2-digit',year:'numeric' };
+//   var tanggal = new Date().toLocaleDateString('en-US',options);
+//   const filename = req.file.filename.toString();
+//   const result = await executeQuery(conn,`INSERT INTO berita values('${judul}', '${isiberita}', '${tanggal}', '${filename}','${kategori}', null)`);
+//   res.redirect("/adminPage");
+// });
+app.put("/api/updatepropic",uploads.single("propic"), async function (req, res) {
+    const token = req.header("x-auth-token");
+    const filename = req.file.filename.toString();
+    if(!filename){
+      return res.status(404).send("File Required");
+    }
+    let user = {};
+    if(!token){
+        return res.status(401).send("Token not found");
+    }
+    try{
+         user = jwt.verify(token,"proyek_soa");
+    }catch(err){
+        return res.status(401).send("Token Invalid");
+    }
+    try {
+      await executeQuery(conn, `update user set user_profile='${filename}' where user_email='${user.email}'`);
+      return res.status(200).send("Profile Picture Updated");
+    } catch (error) {
+      return res.status(400).send(error);
+    }
 });
 
 
@@ -449,8 +509,7 @@ function get_movie_detail(id){
                 resolve(await JSON.parse(response.body));
             } catch (error) {
                 reject({error:error})
-            }
-            
+            }   
         }
     });
   })
