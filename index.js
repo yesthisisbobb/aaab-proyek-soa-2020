@@ -104,8 +104,6 @@ app.post("/api/register", async (req,res)=>{
       "email":user_email,
       "name" : user_name
   }   ,"proyek_soa");
-
-  
   
   let query = `INSERT INTO user VALUES('${user_email}','${user_password}',${user_balance},'${token}','${user_address}','${user_phone}','${user_name}', NOW() + INTERVAL 7 DAY,'')`;
   let conn = await getConnection();
@@ -417,9 +415,7 @@ app.delete("/api/comment/:id", async function (req, res) {
   }
 });
 
-
-
-
+//asc
 function getTrailer(id){
   return new Promise(function(resolve,reject){
       var options = {
@@ -461,7 +457,22 @@ function get_tv_bygenre(genre_id){
   })
 }
 
-app.get('/api/tvbyepisode/:genre',async function(req,res){
+function get_movie_bygenre(genre_id){
+  return new Promise(function(resolve,reject){
+    key = process.env.TMDB_API_KEY;
+    let options = {
+      'method': 'GET',
+      'url': `
+      https://api.themoviedb.org/3/discover/movie?api_key=${key}&sort_by=popularity.desc&with_genres=${genre_id}`,
+    };
+      request(options, function (error, response) { 
+        if (error) reject(new Error(error));
+        else resolve(response.body);
+    });
+  })
+}
+
+app.get('/api/tvbyepisode',async function(req,res){
   let key = req.query.key;
   let con = await getConnection(); 
   if(!key){
@@ -475,7 +486,7 @@ app.get('/api/tvbyepisode/:genre',async function(req,res){
   let temp_id = [];
   let temp_tv = [];
   let temp_tv2 = [];
-  let genre_id = req.params.genre;
+  let genre_id = req.query.genre;
   if(!genre_id){
     return res.status(404).send("TV Show genre required!");
   }
@@ -505,6 +516,92 @@ app.get('/api/tvbyepisode/:genre',async function(req,res){
   }
 });
 
+app.get('/api/recommendedMovie',async function(req,res){//recommended Movie dari genre di watchlist paling banyak
+  let key = req.query.key;
+  let con = await getConnection(); 
+  if(!key){
+    return res.status(404).send("API Key not found! Register to get your API key!");
+  }
+  let checkkey = await executeQuery(con, `select * from user where user_key='${key}'`);
+  if(checkkey.length==0){
+    return res.status(404).send("Invalid API Key!");
+  }
+  var temp_movie = [];
+  var temp_genre = [];
+  try {
+    const tv = await executeQuery(con, `select movie_id from watchlist where watchlist_type=0`);
+    for (let i = 0; i < tv.length; i++) {
+      temp_movie.push(await get_movie_detail(parseInt(tv[i].movie_id)));
+    }
+    for (let i = 0; i < temp_movie.length; i++) {
+      for (let j = 0; j < temp_movie[i].genres.length; j++) {
+        temp_genre.push(temp_movie[i].genres[j]);
+      }
+    }
+    var occurences = temp_genre.reduce(function (r, row) {
+      r[row.id] = ++r[row.id] || 1;
+      return r;
+    }, {});
+    
+    var result = Object.keys(occurences).map(function (key) {
+        return { key: key, value: occurences[key] };
+    });
+    var maxValue = getMax(result, "value");
+    const movie = JSON.parse(await get_movie_bygenre(maxValue.key));
+    res.status(200).send(movie);
+  } catch (error) {
+    res.status(500).send(error);
+  }
+});
+
+app.get('/api/recommendedTvshow',async function(req,res){//recommended tv show dari genre di watchlist paling banyak
+  let key = req.query.key;
+  let con = await getConnection(); 
+  if(!key){
+    return res.status(404).send("API Key not found! Register to get your API key!");
+  }
+  let checkkey = await executeQuery(con, `select * from user where user_key='${key}'`);
+  if(checkkey.length==0){
+    return res.status(404).send("Invalid API Key!");
+  }
+  var temp_tv = [];
+  var temp_genre = [];
+  try {
+    const tv = await executeQuery(con, `select movie_id from watchlist where watchlist_type=1`);
+    for (let i = 0; i < tv.length; i++) {
+      temp_tv.push(JSON.parse(await get_tv_detail(parseInt(tv[i].movie_id))));
+    }
+    for (let i = 0; i < temp_tv.length; i++) {
+      for (let j = 0; j < temp_tv[i].genres.length; j++) {
+        temp_genre.push(temp_tv[i].genres[j]);
+      }
+    }
+    var occurences = temp_genre.reduce(function (r, row) {
+      r[row.id] = ++r[row.id] || 1;
+      return r;
+    }, {});
+    
+    var result = Object.keys(occurences).map(function (key) {
+        return { key: key, value: occurences[key] };
+    });
+    var maxValue = getMax(result, "value");
+    const tvshow = JSON.parse(await get_tv_bygenre(maxValue.key));
+    res.status(200).send(tvshow);
+  } catch (error) {
+    res.status(500).send(error);
+  }
+});
+
+function getMax(arr, prop) {
+  var max;
+  for (var i=0 ; i<arr.length ; i++) {
+      if (max == null || parseInt(arr[i][prop]) > parseInt(max[prop])){
+        max = arr[i];
+      }
+  }
+  return max;
+}
+
 app.get('/api/trailer/:id',async function(req,res){
   let id = req.params.id;
   let key = req.query.key;
@@ -532,10 +629,29 @@ app.get('/api/trailer/:id',async function(req,res){
   }
 });
 
-app.get('/api/tes/:id',async function(req,res){
-  let id = req.params.id;
-  
+app.put("/api/updatepropic",uploads.single("propic"), async function (req, res) {
+  const token = req.header("x-auth-token");
+  const filename = req.file.filename.toString();
+  if(!filename){
+    return res.status(404).send("File Required");
+  }
+  let user = {};
+  if(!token){
+      return res.status(401).send("Token not found");
+  }
+  try{
+       user = jwt.verify(token,"proyek_soa");
+  }catch(err){
+      return res.status(401).send("Token Invalid");
+  }
+  try {
+    await executeQuery(conn, `update user set user_profile='${filename}' where user_email='${user.email}'`);
+    return res.status(200).send("Profile Picture Updated");
+  } catch (error) {
+    return res.status(400).send(error);
+  }
 });
+//asc
 
 app.get('/api/test_geocode',async function(req,res){
   let address = 'Green Semanggi Mangrove'
@@ -548,29 +664,6 @@ app.get('/api/test_geocode',async function(req,res){
     latitude : hasil.latt
   })
 })
-
-app.put("/api/updatepropic",uploads.single("propic"), async function (req, res) {
-    const token = req.header("x-auth-token");
-    const filename = req.file.filename.toString();
-    if(!filename){
-      return res.status(404).send("File Required");
-    }
-    let user = {};
-    if(!token){
-        return res.status(401).send("Token not found");
-    }
-    try{
-         user = jwt.verify(token,"proyek_soa");
-    }catch(err){
-        return res.status(401).send("Token Invalid");
-    }
-    try {
-      await executeQuery(conn, `update user set user_profile='${filename}' where user_email='${user.email}'`);
-      return res.status(200).send("Profile Picture Updated");
-    } catch (error) {
-      return res.status(400).send(error);
-    }
-});
 
 
 function search_movies(keyword){
