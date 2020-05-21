@@ -462,6 +462,15 @@ function get_tv_bygenre(genre_id){
 }
 
 app.get('/api/tvbyepisode/:genre',async function(req,res){
+  let key = req.query.key;
+  let con = await getConnection(); 
+  if(!key){
+    return res.status(404).send("API Key not found! Register to get your API key!");
+  }
+  let checkkey = await executeQuery(con, `select * from user where user_key='${key}'`);
+  if(checkkey.length==0){
+    return res.status(404).send("Invalid API Key!");
+  }
   let maxepisode = req.query.maxepisode;
   let temp_id = [];
   let temp_tv = [];
@@ -503,7 +512,7 @@ app.get('/api/trailer/:id',async function(req,res){
   if(!key){
     return res.status(404).send("API Key not found! Register to get your API key!");
   }
-  let checkkey = await executeQuery(conn, `select * from user where user_key='${key}'`);
+  let checkkey = await executeQuery(con, `select * from user where user_key='${key}'`);
   if(checkkey.length==0){
     return res.status(404).send("Invalid API Key!");
   }
