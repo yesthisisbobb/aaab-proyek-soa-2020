@@ -392,6 +392,70 @@ function getTrailer(id){
       });
   })  
 }
+function get_tv_detail(id){
+  return new Promise(function(resolve,reject){
+    key = process.env.TMDB_API_KEY;
+    let options = {
+      'method': 'GET',
+      'url': `https://api.themoviedb.org/3/tv/${id}?api_key=${key}`,
+    };
+      request(options, function (error, response) { 
+        if (error) reject(new Error(error));
+        else resolve(response.body);
+    });
+  })
+}
+
+function get_tv_bygenre(genre_id){
+  return new Promise(function(resolve,reject){
+    key = process.env.TMDB_API_KEY;
+    let options = {
+      'method': 'GET',
+      'url': `
+      https://api.themoviedb.org/3/discover/tv?api_key=${key}&sort_by=popularity.desc&with_genres=${genre_id}`,
+    };
+      request(options, function (error, response) { 
+        if (error) reject(new Error(error));
+        else resolve(response.body);
+    });
+  })
+}
+
+app.get('/api/tvbyepisode/:genre',async function(req,res){
+  let maxepisode = req.query.maxepisode;
+  let temp_id = [];
+  let temp_tv = [];
+  let temp_tv2 = [];
+  let genre_id = req.params.genre;
+  if(!genre_id){
+    return res.status(404).send("TV Show genre required!");
+  }
+  try {
+    if(!maxepisode){
+      const movie = JSON.parse(await get_tv_bygenre(genre_id));
+      const result = movie.results;
+      res.status(200).send(result);
+    }else{
+      const tv = JSON.parse(await get_tv_bygenre(genre_id));
+      const result = tv.results;
+      for (let i = 0; i < result.length; i++) {
+        temp_id.push(parseInt(result[i].id));
+      }
+      for (let i = 0; i < temp_id.length; i++) {
+        temp_tv.push(JSON.parse(await get_tv_detail(temp_id[i])));
+      }
+      for (let i = 0; i < temp_tv.length; i++) {
+        if(parseInt(temp_tv[i].number_of_episodes)<=parseInt(maxepisode)){
+          temp_tv2.push(temp_tv[i]);
+        }
+      }
+      res.status(200).send(temp_tv2);
+    }
+  } catch (error) {
+    res.status(500).send(error);
+  }
+});
+
 app.get('/api/trailer/:id',async function(req,res){
   let id = req.params.id;
   let key = req.query.key;
@@ -419,6 +483,11 @@ app.get('/api/trailer/:id',async function(req,res){
   }
 });
 
+app.get('/api/tes/:id',async function(req,res){
+  let id = req.params.id;
+  
+});
+
 app.get('/api/test_geocode',async function(req,res){
   let address = 'Green Semanggi Mangrove'
   let town = 'Surabaya'
@@ -430,17 +499,7 @@ app.get('/api/test_geocode',async function(req,res){
     latitude : hasil.latt
   })
 })
-// app.post("/uploadBerita",uploads.single("gambar"), async function(req,res){
-//   const conn= await getConnection();
-//   const judul=req.body.judul;
-//   const kategori=req.body.kategori;
-//   const isiberita = req.body.isiberita;
-//   var options = {month:'short',day: '2-digit',minute:'2-digit',hour:'2-digit',year:'numeric' };
-//   var tanggal = new Date().toLocaleDateString('en-US',options);
-//   const filename = req.file.filename.toString();
-//   const result = await executeQuery(conn,`INSERT INTO berita values('${judul}', '${isiberita}', '${tanggal}', '${filename}','${kategori}', null)`);
-//   res.redirect("/adminPage");
-// });
+
 app.put("/api/updatepropic",uploads.single("propic"), async function (req, res) {
     const token = req.header("x-auth-token");
     const filename = req.file.filename.toString();
@@ -514,8 +573,6 @@ function get_movie_detail(id){
     });
   })
 }
-
-
 
 
 //untuk dapat Latitute Longitute
