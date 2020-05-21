@@ -22,6 +22,7 @@ message[201] = {status:201,message:"Created"}
 message[500] = {status:500,message:"Internal Error"}
 message[400] = {status:400,message:"Bad Request"}
 message[401] = {status:401,message:"Unauthorized"}
+message[403] = {status:403,message:"Invalid Key"}
 message[404] = {status:404,message:"Not Found"}
 message[409] = {status:409,message:"User has already registered"}
 message[426] = {status:426,message:"Upgrade Required"}
@@ -255,19 +256,19 @@ app.get('/api/checkExpirationDate',async function(req,res){
 //GET REMINDER BASED ON USER'S WATCHLIST
 app.get('/api/reminderMovie',async function(req,res){
   let key = req.query.key
-  if(!key) return res.status(401).send(message[401])
+  if(!key) return res.status(403).send(message[403])
 
   let user = {}
   //cek apakah expired
   try{
-    user = jwt.verify(key,"proyek_soa");
+    user = await verify_api(key)
   }catch(err){
     //401 not authorized
-    return res.status(401).send(message[401])
+    return res.status(403).send(message[403])
   }
   console.log(user)
   const conn = await getConnection()
-  let que = `SELECT movie_id FROM watchlist WHERE email_user = '${user.email}'`
+  let que = `SELECT movie_id FROM watchlist WHERE email_user = '${user.email}' and watchlist_type=0`
   const movies_id = await executeQuery(conn,que)
 
   console.log(movies_id)
@@ -292,6 +293,109 @@ app.get('/api/reminderMovie',async function(req,res){
   
   console.log(hasil)
 
+  return res.status(200).send(hasil)
+
+})
+
+
+//untuk kasih rating 
+app.post('/api/rating/:type/:id',async function(req,res){
+    let type = req.params.type
+    let id = req.params.id
+    let key = req.query.key
+    let score = req.body.score
+    const conn = await getConnection();
+
+    //cek kelengkapan field
+    if(!id||!type||!score) return res.status(400).send(message[400])
+    if(type<0||type>1 || score > 10 || score < 1) return res.status(400).send(message[400])
+    //cek kalau score bukan angka
+    if(!(/^\d+$/.test(score))) return res.status(400).send(message[400])
+    
+    //cek user
+    let user = {}
+    try {
+      user = await verify_api(key)
+      console.log(user)
+    } catch (error) {
+      return res.status(403).send(message[403])
+    }
+    
+    //insert rating
+    try {
+      let que_cari = `SELECT * FROM rating WHERE rating_user_email = '${user.email}' and rating_movie_id = ${id}`
+      let hasil_cari =  await executeQuery(conn,que_cari)
+      if(hasil_cari.length>0){
+        let que_upd = `UPDATE rating SET rating_score = ${score} WHERE rating_id = ${hasil_cari[0].rating_id}`
+        let hasil_update = await executeQuery(conn,que_upd)
+        if(hasil_update.affectedRows==0) return res.status(500).send(message[500])
+        return res.status(200).send(message[200])
+      }
+      else{
+        let que = `INSERT INTO rating VALUES(1,${score},'${user.email}',${id},${type})`
+      
+        const hasil_insert = await executeQuery(conn,que)
+        if(hasil_insert.affectedRows == 0) return res.status(500).send(message[500])
+        return res.status(201).send(message[201])
+      }
+    } catch (error) {
+        console.log(error)
+        return res.status(500).send(message[500])
+    }
+    
+    
+})  
+
+//GET today's tv show update 
+app.get("/api/reminderTV",async function(req,res){
+  let key = req.query.key
+  if(!key) return res.status(403).send(message[403])
+
+  let user = {}
+  //cek apakah expired
+  try{
+    user = await verify_api(key)
+  }catch(err){
+    //401 not authorized
+    return res.status(403).send(message[403])
+  }
+  console.log(user)
+  const conn = await getConnection()
+  let que = `SELECT movie_id FROM watchlist WHERE email_user = '${user.email}' and watchlist_type=1`
+  const tv_id = await executeQuery(conn,que)
+
+  console.log(tv_id)
+  let hasil = []
+  for(let i = 0;i < tv_id.length;i++){
+    const tmp = await JSON.parse(await get_tv_detail(tv_id[i].movie_id))
+    let today = new Date(Date.now())
+    let obj = {}
+    
+    if(tmp.next_episode_to_air){
+      let date = new Date(tmp.next_episode_to_air.air_date)
+      let eps = tmp.next_episode_to_air.episode_number  
+      if(date==today){
+        obj = {
+          title : tmp.name,
+          episode : eps,
+          description : tmp.name+` episode ${eps} is currently on air`
+        }
+      }
+      else if(date>today){
+        let compare = Math.abs(date - today);
+        let day = Math.round((compare/1000)/(3600*24))
+        obj = {
+          title : tmp.name,
+          episode : eps,
+          description : tmp.name+` episode ${eps} will be airing in ${day} day(s)`
+        }
+      }
+    }
+
+    console.log()
+    hasil.push(obj)
+  }
+  
   return res.status(200).send(hasil)
 
 })
@@ -774,7 +878,21 @@ function get_location(location){
     
 }
 
+function verify_api(key){
+    return new Promise(function(resolve,reject){
+      let user = {}
+      //cek apakah expired
+        try{
+            user = jwt.verify(key,"proyek_soa");
+            resolve(user)
+        }catch(err){
+          //401 not authorized
+            reject({error:err})
+        }
+        
+    })
 
+}
 
 
 
