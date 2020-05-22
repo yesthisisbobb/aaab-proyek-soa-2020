@@ -4,9 +4,8 @@ const mysql = require('mysql');
 const jwt = require('jsonwebtoken');
 const request = require('request');
 const multer = require('multer');
-const http = require('http');
 const path = require('path');
-
+const midtransClient = require('midtrans-client');
 
 // REQUIRE YANG NGAMBIL FILE
 const hash = require('./hash_string');
@@ -26,8 +25,6 @@ message[403] = {status:403,message:"Invalid Key"}
 message[404] = {status:404,message:"Not Found"}
 message[409] = {status:409,message:"User has already registered"}
 message[426] = {status:426,message:"Upgrade Required"}
-
-
 
 //untuk mengakses .env
 require("dotenv").config();
@@ -92,7 +89,7 @@ function checkFileType(file,callback){
 }
 
 app.get("/", function (req,res) {
-  res.status(200).send("This is not the page you're looking for");
+  res.status(404).send("This is not the page you're looking for");
 });
 
 app.post("/api/register", async (req,res)=>{
@@ -159,68 +156,68 @@ app.put("/api/update_profile/:email", async function (req,res) {
   }
 });
 
-app.post("/api/top_up", async function (req,res) {
+app.post("/api/payment", async function (req,res) {
     let email = req.body.email;
     let password = req.body.password;
-    let value = parseInt(req.body.value);
-
+    
     if (!email) {
-        return res.status(400).send("No email reference!");
+        return res.status(400).send(message[400]);
     }
     if (!password) {
-        return res.status(400).send("Password Required!");
+        return res.status(400).send(message[400]);
     }
 
+    let conn = await getConnection();
     let checkUser = await executeQuery(conn, `select * from user where user_email = '${email}' and user_password = '${password}'`);
-    if (checkUser.length < 1) {
-        return res.status(400).send("Email or password invalid!");
-    }
-    let balance = checkUser[0].user_balance;
-
-    let topUp = await executeQuery(conn, `update user set user_balance = '${balance+value}' where user_email = '${email}'`);
-    //   if(topUp["affectedRows"] > 0){
-    //     let expired = false
-    //     let user = {}
-    //     //cek apakah expired
-    //     try{
-    //       user = jwt.verify(checkUser[0].user_key,"proyek_soa");
-    //     }catch(err){
-    //       //401 not authorized
-    //       expired = true
-    //     }
-    //     let new_token
-    //     if(expired){
-    //         //kalau expired buat key baru dengan expiration date 30 hari
-    //         new_token = jwt.sign({    
-    //           "email":email,
-    //           "name" : user_name
-    //         },"proyek_soa", {
-    //             expiresIn : '30d'
-    //         });
-    //     }
-    //     else{
-    //         //kalau tidak expired buat token baru dengan expiration date 30 hari ditambah dengan sisa hari sebelum expiration date
-    //         let time = (new Date().getTime()/1000)-user.iat
-    //         time+=(60*60*24*30)
-    //         new_token = jwt.sign({    
-    //           "email":email,
-    //           "name" : user_name
-    //         },"proyek_soa", {
-    //             expiresIn : time+'d'
-    //         });
-    //     }
-
-    //     let que = `
-    //     UPDATE user 
-    //     SET user_token = '${new_token}'
-    //     WHERE user_email = '${email}' and user_password = '${password}'`
-
-    //     let update_token = await executeQuery(conn,que)
-    //     if(update_token.affectedRows>0)return res.status(200).send("Top Up Successful");
-        
-        
-    // }
     conn.release();
+    
+    if (checkUser.length < 1) {
+        return res.status(404).send(message[404]);
+    }
+
+    let core = new midtransClient.CoreApi({
+      isProduction : false,
+      serverKey : 'SB-Mid-server-LpTPLLHY4TO-eZeTv2OJNPlk',
+      clientKey : 'SB-Mid-client-7zZs4-dYyNoec7oL'
+    });
+
+    let card_number = req.body.card_number;
+    let card_exp_month = req.body.card_exp_month;
+    let card_exp_year = req.body.card_exp_year;
+    let card_cvv = req.body.card_cvv;
+
+    let parameter = {
+      'card_number': card_number,
+      'card_exp_month': card_exp_month,
+      'card_exp_year': card_exp_year,
+      'card_cvv': card_cvv,
+      'client_key': core.apiConfig.clientKey,
+    };
+
+    core.cardToken(parameter).then((cardTokenResponse)=>{
+      let cardToken = cardTokenResponse.token_id;
+      let parameter = {
+          "payment_type": "credit_card",
+          "transaction_details": {
+              "gross_amount": 50000,
+              "order_id": Date.now(),
+          },
+          "credit_card":{
+              "token_id": cardToken
+          }
+      };
+
+      return core.charge(parameter);
+    })
+    .then((chargeResponse)=>{
+        return res.send(chargeResponse);
+    })
+    .catch((e)=>{
+        console.log('Error occured:',e.message);
+    });;
+
+
+   
 });
 
 app.post("/api/login",async function(req,res){
@@ -846,8 +843,8 @@ app.put("/api/updatepropic",uploads.single("propic"), async function (req, res) 
     return res.status(400).send(error);
   }
 });
-//asc
 
+//asc
 app.get('/api/test_geocode',async function(req,res){
   let address = 'Green Semanggi Mangrove'
   let town = 'Surabaya'
@@ -858,8 +855,7 @@ app.get('/api/test_geocode',async function(req,res){
     longitude : hasil.longt,
     latitude : hasil.latt
   })
-})
-
+});
 
 function search_movies(keyword){
   return new Promise(function(resolve,reject){
