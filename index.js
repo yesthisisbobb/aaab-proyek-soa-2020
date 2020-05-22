@@ -186,6 +186,27 @@ app.post("/api/payment", async function (req,res) {
     let card_exp_year = req.body.card_exp_year;
     let card_cvv = req.body.card_cvv;
 
+    let paket = req.body.paket;
+    let hari = 0;
+    let bayar = 0;
+
+    if(paket == 0){
+      hari = 30;
+      bayar = 50000;
+    }
+    else if(paket == 1){
+      hari = 90;
+      bayar = 75000;
+    }
+    else if(paket == 2){
+      hari = 180;
+      bayar = 100000;
+    }
+    else if(paket == 3){
+      hari = 365;
+      bayar = 150000;
+    }
+
     let parameter = {
       'card_number': card_number,
       'card_exp_month': card_exp_month,
@@ -199,7 +220,7 @@ app.post("/api/payment", async function (req,res) {
       let parameter = {
           "payment_type": "credit_card",
           "transaction_details": {
-              "gross_amount": 50000,
+              "gross_amount": bayar,
               "order_id": Date.now(),
           },
           "credit_card":{
@@ -212,7 +233,9 @@ app.post("/api/payment", async function (req,res) {
     .then(async (chargeResponse)=>{       
         
         if(chargeResponse.status_code == 200){
-          let query = `UPDATE user SET expired_date = DATE_ADD(expired_date, INTERVAL 30 DAY) WHERE user_email = '${email}' AND user_password='${password}'`;
+          
+
+          let query = `UPDATE user SET expired_date = DATE_ADD(expired_date, INTERVAL ${hari} DAY) WHERE user_email = '${email}' AND user_password='${password}'`;
           let conn = await getConnection();
           let result = await executeQuery(conn, query);
           conn.release();
@@ -227,6 +250,16 @@ app.post("/api/payment", async function (req,res) {
         console.log('Error occured:',e.message);
     });;
 
+});
+
+app.get("/api/paket", (req,res)=>{
+  let output = {
+    'bronze' : 'Rp.50.000,00- untuk 1 (satu) bulan',
+    'silver' : 'Rp.75.000,00- untuk 3 (tiga) bulan',
+    'gold' : 'Rp.100.000,00- untuk 6 (enam) bulan',
+    'platinum' : 'Rp.150.000,00- untuk 1 (satu) tahun'
+  };
+  return res.send(output);
 });
 
 //endpoint ini untuk midtrans akses notifikasi
@@ -424,12 +457,18 @@ app.get("/api/reminderTV",async function(req,res){
 
 });
 
-// ADD WATCHLIST
-app.post("/api/watchlist", async (req,res)=>{
+// ADD WATCHLIST MOVIES
+app.post("/api/watchlist/movies", async (req,res)=>{
   let email_user = req.body.user_email;
   let movie_id = req.body.movie_id;
+  
+  let key = req.query.key;
+  //cek kalau token tidak disertakan
+  if(key == "" || key == null || typeof key === 'undefined'){
+    return res.status(403).send(message[403]);
+  }
 
-  let query = `INSERT INTO watchlist VALUES('${email_user}','${movie_id}')`;
+  let query = `INSERT INTO watchlist VALUES(NULL,'${email_user}','${movie_id}',0)`;
   let conn = await getConnection();
   let result = await executeQuery(conn, query);
   conn.release();
@@ -437,22 +476,94 @@ app.post("/api/watchlist", async (req,res)=>{
   res.status(200).send("Add to Watchlist");
 });
 
-// GET WATCHLIST
-app.get("/api/watchlist",async (req,res)=>{
+// GET WATCHLIST MOVIES
+app.get("/api/watchlist/movies",async (req,res)=>{
   let user_email = req.query.user;
-  let query = `SELECT movie_id FROM watchlist WHERE email_user='${user_email}'`;
+  let key = req.query.key;
+
+  //cek kalau token tidak disertakan
+  if(key == "" || key == null || typeof key === 'undefined'){
+    return res.status(403).send(message[403]);
+  }
+
+  let query = `SELECT movie_id FROM watchlist WHERE email_user='${user_email}' AND watchlist_type = 0`;
   let conn = await getConnection();
   let result = await executeQuery(conn, query);
   conn.release();
-  if(Object.keys(result).length == 0) return res.status(200).send("anda belum memiliki watchlist");
+
+  if(Object.keys(result).length == 0) return res.status(404).send(message[404]);
 
   res.status(200).send(result);
 });
 
-// DELETE WATCHLIST
-app.delete("/api/watchlist",async (req,res)=>{
+// DELETE WATCHLIST MOVIES
+app.delete("/api/watchlist/movies",async (req,res)=>{
   let email_user = req.body.user_email;
   let movie_id = req.body.movie_id;
+
+  let key = req.query.key;
+  //cek kalau token tidak disertakan
+  if(key == "" || key == null || typeof key === 'undefined'){
+    return res.status(403).send(message[403]);
+  }
+
+  let query = `DELETE FROM watchlist WHERE movie_id='${movie_id}' AND email_user='${email_user}'`;
+  let conn = await getConnection();
+  let result = await executeQuery(conn, query);
+  conn.release();
+
+  res.status(200).send("Delete From Watchlist");
+});
+
+// ADD WATCHLIST TV
+app.post("/api/watchlist/tv", async (req,res)=>{
+  let email_user = req.body.user_email;
+  let movie_id = req.body.movie_id;
+  
+  let key = req.query.key;
+  //cek kalau token tidak disertakan
+  if(key == "" || key == null || typeof key === 'undefined'){
+    return res.status(403).send(message[403]);
+  }
+
+  let query = `INSERT INTO watchlist VALUES(NULL,'${email_user}','${movie_id}',1)`;
+  let conn = await getConnection();
+  let result = await executeQuery(conn, query);
+  conn.release();
+
+  res.status(200).send("Add to Watchlist");
+});
+
+// GET WATCHLIST TV
+app.get("/api/watchlist/tv",async (req,res)=>{
+  let user_email = req.query.user;
+  let key = req.query.key;
+
+  //cek kalau token tidak disertakan
+  if(key == "" || key == null || typeof key === 'undefined'){
+    return res.status(403).send(message[403]);
+  }
+
+  let query = `SELECT movie_id as tv_id FROM watchlist WHERE email_user='${user_email}' AND watchlist_type = 1`;
+  let conn = await getConnection();
+  let result = await executeQuery(conn, query);
+  conn.release();
+
+  if(Object.keys(result).length == 0) return res.status(404).send(message[404]);
+
+  res.status(200).send(result);
+});
+
+// DELETE WATCHLIST TV
+app.delete("/api/watchlist/tv",async (req,res)=>{
+  let email_user = req.body.user_email;
+  let movie_id = req.body.movie_id;
+
+  let key = req.query.key;
+  //cek kalau token tidak disertakan
+  if(key == "" || key == null || typeof key === 'undefined'){
+    return res.status(403).send(message[403]);
+  }
 
   let query = `DELETE FROM watchlist WHERE movie_id='${movie_id}' AND email_user='${email_user}'`;
   let conn = await getConnection();
