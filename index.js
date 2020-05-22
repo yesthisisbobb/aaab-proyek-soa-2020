@@ -121,25 +121,37 @@ app.post("/api/register", async (req,res)=>{
 });
 
 app.put("/api/update_profile/:email", async function (req,res) {
-    let email = req.params.email;
-    let password = req.body.password;
-    let address = req.body.address;
-    let phone = req.body.phone;
-    let name = req.body.name;
+  let email = req.params.email;
+  let password = req.body.password;
+  let address = req.body.address;
+  let phone = req.body.phone;
+  let name = req.body.name;
 
-    if (!email) {
-        return res.status(400).send("No email reference!");
-    }
+  let key = req.query.key;
 
-    let checkUser = await executeQuery(conn, `select * from user where user_email = '${email}'`);
-    if (checkUser.length < 1) {
-        return res.status(400).send("User with that email doesn't exist!");
+  if (!key) { return res.status(403).send(message[403]); }
+  else {
+    let user = {}
+    try {
+      user = await verify_api(key)
+    } catch (err) {
+      return res.status(403).send(message[403])
     }
+  }
 
-    let updateEmail = await executeQuery(conn, `update user set user_password = '${password}', user_address = '${address}', user_phone = '${phone}', user_name = '${name}' where user_email = '${email}'`);
-    if(updateEmail["affectedRows"] > 0){
-        return res.status(200).send("Account berhasil diubah!");
-    }
+  if (!email) {
+      return res.status(400).send("No email reference!");
+  }
+
+  let checkUser = await executeQuery(conn, `select * from user where user_email = '${email}'`);
+  if (checkUser.length < 1) {
+      return res.status(400).send("User with that email doesn't exist!");
+  }
+
+  let updateEmail = await executeQuery(conn, `update user set user_password = '${password}', user_address = '${address}', user_phone = '${phone}', user_name = '${name}' where user_email = '${email}'`);
+  if(updateEmail["affectedRows"] > 0){
+      return res.status(200).send("Account berhasil diubah!");
+  }
 });
 
 
@@ -442,6 +454,19 @@ app.delete("/api/watchlist",async (req,res)=>{
 app.get("/api/search/movies",async (req,res)=>{
   let keyword = req.query.keyword;
   let type = req.query.type;
+
+  let key = req.query.key;
+
+  if (!key) { return res.status(403).send(message[403]); }
+  else {
+    let user = {}
+    try {
+      user = await verify_api(key)
+    } catch (err) {
+      return res.status(403).send(message[403])
+    }
+  }
+
   let options = {
     'method': 'GET',
     'url': `https://api.themoviedb.org/3/search/movie?api_key=${process.env.TMDB_API_KEY}&query=${keyword}`,
@@ -463,6 +488,17 @@ app.get("/api/search/movies",async (req,res)=>{
 // POST COMMENT
 app.post("/api/comment", async function (req, res) {
   let id_post = req.body.id_post, id_user = req.body.id_user, comment = req.body.comment;
+  let key = req.query.key;
+
+  if (!key) { return res.status(403).send(message[403]); }
+  else {
+    let user = {}
+    try {
+      user = await verify_api(key)
+    } catch (err) {
+      return res.status(403).send(message[403])
+    }
+  }
 
   if (!id_post) return res.status(400).send("No id_post sent!");
   if (!id_user) return res.status(400).send("No id_user sent!");
@@ -475,6 +511,17 @@ app.post("/api/comment", async function (req, res) {
 // AMBIL COMMENT
 app.get("/api/comment/get/:id", async function (req, res) {
   let id = req.params.id;
+  let key = req.query.key;
+
+  if (!key) { return res.status(403).send(message[403]); }
+  else {
+    let user = {}
+    try {
+      user = await verify_api(key)
+    } catch (err) {
+      return res.status(403).send(message[403])
+    }
+  }
 
   if (!id) {
     let getAllComment = await executeQuery(conn, `select * from comment`);
@@ -489,6 +536,17 @@ app.get("/api/comment/get/:id", async function (req, res) {
 // UPDATE COMMENT
 app.put("/api/comment/:id", async function (req, res) {
   let id = req.params.id, updatedComment = req.body.updatedComment;
+  let key = req.query.key;
+
+  if (!key) { return res.status(403).send(message[403]); }
+  else {
+    let user = {}
+    try {
+      user = await verify_api(key)
+    } catch (err) {
+      return res.status(403).send(message[403])
+    }
+  }
 
   if (!id) return res.status(400).send("No id sent!");
   if (!updatedComment) return res.status(400).send("Updated comment is empty, maybe trying to delete?");
@@ -507,6 +565,17 @@ app.put("/api/comment/:id", async function (req, res) {
 // DELETE COMMENT
 app.delete("/api/comment/:id", async function (req, res) {
   let id = req.params.id;
+  let key = req.query.key;
+
+  if (!key) { return res.status(403).send(message[403]); }
+  else {
+    let user = {}
+    try {
+      user = await verify_api(key)
+    } catch (err) {
+      return res.status(403).send(message[403])
+    }
+  }
 
   let getCommentById = await executeQuery(conn, `select * from comment where id_comment=${parseInt(id)}`);
   if (getCommentById.length < 1) return res.status(404).send("Comment not found");
