@@ -209,15 +209,29 @@ app.post("/api/payment", async function (req,res) {
 
       return core.charge(parameter);
     })
-    .then((chargeResponse)=>{
-        return res.send(chargeResponse);
+    .then(async (chargeResponse)=>{       
+        
+        if(chargeResponse.status_code == 200){
+          let query = `UPDATE user SET expired_date = DATE_ADD(expired_date, INTERVAL 30 DAY) WHERE user_email = '${email}' AND user_password='${password}'`;
+          let conn = await getConnection();
+          let result = await executeQuery(conn, query);
+          conn.release();
+          return res.status(200).send(message[200]);
+        }
+        else{
+          return res.status(chargeResponse.status_code).send(chargeResponse.status_message);
+        }
+        
     })
     .catch((e)=>{
         console.log('Error occured:',e.message);
     });;
 
+});
 
-   
+//endpoint ini untuk midtrans akses notifikasi
+app.get('/respon', (req,res)=>{
+  return res.status(200).send("success");
 });
 
 app.post("/api/login",async function(req,res){
