@@ -72,6 +72,7 @@ const storage = multer.diskStorage({
       callback(null,Date.now() + "." + extension);
   }
 });
+
 const uploads = multer({
   storage : storage,
   fileFilter: function(req,file,callback){
@@ -153,7 +154,6 @@ app.put("/api/update_profile/:email", async function (req,res) {
       return res.status(200).send("Account berhasil diubah!");
   }
 });
-
 
 app.post("/api/top_up", async function (req,res) {
     let email = req.body.email;
@@ -239,7 +239,7 @@ app.post("/api/login",async function(req,res){
     // }
 
     return res.status(200).send({"key" : user[0].user_key})
-  })
+});
 
 app.get('/api/checkExpirationDate',async function(req,res){
     //let email = req.body.email
@@ -263,7 +263,7 @@ app.get('/api/checkExpirationDate',async function(req,res){
     return res.status(200).send({status:200,message:day+" days"})
 
 
-})  
+});  
 
 //GET REMINDER BASED ON USER'S WATCHLIST
 app.get('/api/reminderMovie',async function(req,res){
@@ -307,8 +307,7 @@ app.get('/api/reminderMovie',async function(req,res){
 
   return res.status(200).send(hasil)
 
-})
-
+});
 
 //untuk kasih rating 
 app.post('/api/rating/:type/:id',async function(req,res){
@@ -353,10 +352,8 @@ app.post('/api/rating/:type/:id',async function(req,res){
     } catch (error) {
         console.log(error)
         return res.status(500).send(message[500])
-    }
-    
-    
-})  
+    } 
+});  
 
 //GET today's tv show update 
 app.get("/api/reminderTV",async function(req,res){
@@ -410,9 +407,9 @@ app.get("/api/reminderTV",async function(req,res){
   
   return res.status(200).send(hasil)
 
-})
+});
 
-//ADD WATCHLIST
+// ADD WATCHLIST
 app.post("/api/watchlist", async (req,res)=>{
   let email_user = req.body.user_email;
   let movie_id = req.body.movie_id;
@@ -425,7 +422,7 @@ app.post("/api/watchlist", async (req,res)=>{
   res.status(200).send("Add to Watchlist");
 });
 
-//GET WATCHLIST
+// GET WATCHLIST
 app.get("/api/watchlist",async (req,res)=>{
   let user_email = req.query.user;
   let query = `SELECT movie_id FROM watchlist WHERE email_user='${user_email}'`;
@@ -437,7 +434,7 @@ app.get("/api/watchlist",async (req,res)=>{
   res.status(200).send(result);
 });
 
-//DELETE WATCHLIST
+// DELETE WATCHLIST
 app.delete("/api/watchlist",async (req,res)=>{
   let email_user = req.body.user_email;
   let movie_id = req.body.movie_id;
@@ -601,6 +598,7 @@ function getTrailer(id){
       });
   })  
 }
+
 function get_tv_detail(id){
   return new Promise(function(resolve,reject){
     key = process.env.TMDB_API_KEY;
@@ -901,9 +899,6 @@ function search_movie_by_id(id){
   })
 }
 
-
-
-
 function get_movie_detail(id){
   return new Promise(function(resolve,reject){
     key = process.env.TMDB_API_KEY;
@@ -923,7 +918,6 @@ function get_movie_detail(id){
     });
   })
 }
-
 
 //untuk dapat Latitute Longitute
 function get_location(location){
@@ -962,8 +956,6 @@ function verify_api(key){
     })
 
 }
-
-
 
 //listener
 app.listen(3000, function (req,res) { console.log("Listening on port 3000..."); });
