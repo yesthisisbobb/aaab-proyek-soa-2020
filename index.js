@@ -453,7 +453,6 @@ app.delete("/api/watchlist",async (req,res)=>{
 // SEARCH MOVIE
 app.get("/api/search/movies",async (req,res)=>{
   let keyword = req.query.keyword;
-  let type = req.query.type;
 
   let key = req.query.key;
 
@@ -471,11 +470,32 @@ app.get("/api/search/movies",async (req,res)=>{
     'method': 'GET',
     'url': `https://api.themoviedb.org/3/search/movie?api_key=${process.env.TMDB_API_KEY}&query=${keyword}`,
   };
-  if (type == "tv series" || type == "series" || type == "tv") {
-    options = {
-      'method': 'GET',
-      'url': `https://api.themoviedb.org/3/search/tv?api_key=${process.env.TMDB_API_KEY}&query=${keyword}`,
-    };
+
+  request(options, function (error, response) {
+    if (error) throw new Error(error);
+    res.status(200).send(response.body);
+  });
+});
+
+// GET TV SERIES
+app.get("/api/search/tv", async (req, res) => {
+  let keyword = req.query.keyword;
+
+  let key = req.query.key;
+
+  if (!key) { return res.status(403).send(message[403]); }
+  else {
+    let user = {}
+    try {
+      user = await verify_api(key)
+    } catch (err) {
+      return res.status(403).send(message[403])
+    }
+  }
+
+  options = {
+    'method': 'GET',
+    'url': `https://api.themoviedb.org/3/search/tv?api_key=${process.env.TMDB_API_KEY}&query=${keyword}`,
   };
 
   request(options, function (error, response) {
