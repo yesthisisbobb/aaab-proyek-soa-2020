@@ -233,8 +233,6 @@ app.post("/api/payment", async function (req,res) {
     .then(async (chargeResponse)=>{       
         
         if(chargeResponse.status_code == 200){
-          
-
           let query = `UPDATE user SET expired_date = DATE_ADD(expired_date, INTERVAL ${hari} DAY) WHERE user_email = '${email}' AND user_password='${password}'`;
           let conn = await getConnection();
           let result = await executeQuery(conn, query);
