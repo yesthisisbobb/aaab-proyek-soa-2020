@@ -91,6 +91,10 @@ function checkFileType(file,callback){
   }
 }
 
+app.get("/", function (req,res) {
+  res.status(200).send("This is not the page you're looking for");
+});
+
 app.post("/api/register", async (req,res)=>{
   let user_email = req.body.user_email;
   let user_password = req.body.user_password;
@@ -978,4 +982,4 @@ function verify_api(key){
 }
 
 //listener
-app.listen(3000, function (req,res) { console.log("Listening on port 3000..."); });
+app.listen(process.env.PORT || 3000, function (req,res) { console.log("Listening on port 3000..."); });
