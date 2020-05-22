@@ -177,8 +177,8 @@ app.post("/api/payment", async function (req,res) {
 
     let core = new midtransClient.CoreApi({
       isProduction : false,
-      serverKey : 'SB-Mid-server-LpTPLLHY4TO-eZeTv2OJNPlk',
-      clientKey : 'SB-Mid-client-7zZs4-dYyNoec7oL'
+      serverKey : process.env.MIDTRANS_SERVER_KEY,
+      clientKey : process.env.MIDTRANS_CLIENT_KEY
     });
 
     let card_number = req.body.card_number;
@@ -230,7 +230,7 @@ app.post("/api/payment", async function (req,res) {
 });
 
 //endpoint ini untuk midtrans akses notifikasi
-app.get('/respon', (req,res)=>{
+app.post('/respon', (req,res)=>{
   return res.status(200).send("success");
 });
 
