@@ -238,7 +238,7 @@ app.post("/api/login",async function(req,res){
     //     return res.status(400).send("Token expired");
     // }
 
-    return res.status(200).send(user[0].user_key)
+    return res.status(200).send({"key" : user[0].user_key})
   })
 
 app.get('/api/checkExpirationDate',async function(req,res){
@@ -246,7 +246,7 @@ app.get('/api/checkExpirationDate',async function(req,res){
     //let password = req.body.password
     let key = req.query.key
     // let token = req.header("x-auth-token")
-
+    if(!key)return res.status(400).send(message[400])
     //if(!token) return res.status(400).send("invalid key")
 
     const conn = await getConnection()
@@ -319,7 +319,7 @@ app.post('/api/rating/:type/:id',async function(req,res){
     const conn = await getConnection();
 
     //cek kelengkapan field
-    if(!id||!type||!score) return res.status(400).send(message[400])
+    if(!id||!type||!score||!id) return res.status(400).send(message[400])
     if(type<0||type>1 || score > 10 || score < 1) return res.status(400).send(message[400])
     //cek kalau score bukan angka
     if(!(/^\d+$/.test(score))) return res.status(400).send(message[400])
@@ -344,7 +344,7 @@ app.post('/api/rating/:type/:id',async function(req,res){
         return res.status(200).send(message[200])
       }
       else{
-        let que = `INSERT INTO rating VALUES(1,${score},'${user.email}',${id},${type})`
+        let que = `INSERT INTO rating(rating_score,rating_user_email,rating_movie_id,rating_type) VALUES(${score},'${user.email}',${id},${type})`
       
         const hasil_insert = await executeQuery(conn,que)
         if(hasil_insert.affectedRows == 0) return res.status(500).send(message[500])
