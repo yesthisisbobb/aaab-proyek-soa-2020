@@ -277,12 +277,10 @@ app.post("/api/login",async function(req,res){
     let today = new Date(today_tmp)
     let today_str = today.getFullYear()+"-"+(today.getMonth()+1)+"-"+today.getDate()
     
-    if(today>user_date) return res.status(426).send(message[426])
+    // if(today>user_date) return res.status(426).send(message[426])
 
     console.log(user[0].expired_date)
-    // if((new Date().getTime()/1000)-user.iat>3600){
-    //     return res.status(400).send("Token expired");
-    // }
+    
 
     return res.status(200).send({"key" : user[0].user_key})
 });
@@ -326,6 +324,13 @@ app.get('/api/reminderMovie',async function(req,res){
   }
   console.log(user)
   const conn = await getConnection()
+
+  //check authorization
+  let que_user = `SELECT * FROM user WHERE user_key = '${key}' and user_email = '${user.email}'`
+  let user_data = await executeQuery(conn,que_user)
+  if(check_expired(user_data[0].expired_date)) return res.status(401).send(message[401])
+  
+  
   let que = `SELECT movie_id FROM watchlist WHERE email_user = '${user.email}' and watchlist_type=0`
   const movies_id = await executeQuery(conn,que)
 
@@ -414,8 +419,17 @@ app.get("/api/reminderTV",async function(req,res){
     //401 not authorized
     return res.status(403).send(message[403])
   }
+
+  
   console.log(user)
   const conn = await getConnection()
+
+  //check authorization
+  let que_user = `SELECT * FROM user WHERE user_key = '${key}' and user_email = '${user.email}'`
+  let user_data = await executeQuery(conn,que_user)
+  if(check_expired(user_data[0].expired_date)) return res.status(401).send(message[401])
+
+
   let que = `SELECT movie_id FROM watchlist WHERE email_user = '${user.email}' and watchlist_type=1`
   const tv_id = await executeQuery(conn,que)
 
@@ -1097,6 +1111,17 @@ function verify_api(key){
         }
         
     })
+
+}
+
+function check_expired(date){
+  let user_date = new Date(date)
+  let today_tmp = Date.now();
+  let today = new Date(today_tmp)
+  let today_str = today.getFullYear()+"-"+(today.getMonth()+1)+"-"+today.getDate()
+  
+  if(today>user_date) return true
+  return false
 
 }
 
