@@ -6,6 +6,8 @@ const request = require('request');
 const multer = require('multer');
 const path = require('path');
 const midtransClient = require('midtrans-client');
+const isNumber = require('is-number');
+
 
 // REQUIRE YANG NGAMBIL FILE
 const hash = require('./hash_string');
@@ -159,21 +161,30 @@ app.put("/api/update_profile/:email", async function (req,res) {
 app.post("/api/payment", async function (req,res) {
     let email = req.body.email;
     let password = req.body.password;
+    let card_number = req.body.card_number;
+    let card_exp_month = req.body.card_exp_month;
+    let card_exp_year = req.body.card_exp_year;
+    let card_cvv = req.body.card_cvv;
+    let paket = req.body.paket;
     
-    if (!email) {
-        return res.status(400).send(message[400]);
-    }
-    if (!password) {
-        return res.status(400).send(message[400]);
+    //semua param ini required
+    if (!email) { return res.status(400).send(message[400]); }
+    if (!password) { return res.status(400).send(message[400]); }
+    if (!card_number) { return res.status(400).send(message[400]); }
+    if (!card_exp_month) { return res.status(400).send(message[400]); }
+    if (!card_exp_year) { return res.status(400).send(message[400]); }
+    if (!card_cvv) { return res.status(400).send(message[400]); }
+    if (!paket) { return res.status(400).send(message[400]); }
+
+    if(!isNumber(card_number) || !isNumber(card_exp_month) || !isNumber(card_exp_year) || !isNumber(card_cvv) || !isNumber(paket)){
+      return res.status(400).send(message[400]);
     }
 
     let conn = await getConnection();
     let checkUser = await executeQuery(conn, `select * from user where user_email = '${email}' and user_password = '${password}'`);
     conn.release();
     
-    if (checkUser.length < 1) {
-        return res.status(404).send(message[404]);
-    }
+    if (checkUser.length < 1) { return res.status(404).send(message[404]); }
 
     let core = new midtransClient.CoreApi({
       isProduction : false,
@@ -181,12 +192,6 @@ app.post("/api/payment", async function (req,res) {
       clientKey : process.env.MIDTRANS_CLIENT_KEY
     });
 
-    let card_number = req.body.card_number;
-    let card_exp_month = req.body.card_exp_month;
-    let card_exp_year = req.body.card_exp_year;
-    let card_cvv = req.body.card_cvv;
-
-    let paket = req.body.paket;
     let hari = 0;
     let bayar = 0;
 
