@@ -328,7 +328,7 @@ app.get('/api/reminderMovie',async function(req,res){
   //check authorization
   let que_user = `SELECT * FROM user WHERE user_key = '${key}' and user_email = '${user.email}'`
   let user_data = await executeQuery(conn,que_user)
-  if(check_expired(user_data[0].expired_date)) return res.status(401).send(message[401])
+  if(check_expired(user_data[0].expired_date)) return res.status(401).send(message[401]);
   
   
   let que = `SELECT movie_id FROM watchlist WHERE email_user = '${user.email}' and watchlist_type=0`
@@ -811,6 +811,14 @@ app.get('/api/tvbyepisode',async function(req,res){
   if(checkkey.length==0){
     return res.status(404).send("Invalid API Key!");
   }
+  let user = {}
+  //cek apakah expired
+  try{
+    user = await verify_api(key)
+  }catch(err){
+    //401 not authorized
+    return res.status(403).send(message[403])
+  }
   let maxepisode = req.query.maxepisode;
   let temp_id = [];
   let temp_tv = [];
@@ -825,6 +833,9 @@ app.get('/api/tvbyepisode',async function(req,res){
       const result = movie.results;
       res.status(200).send(result);
     }else{
+      let que_user = `SELECT * FROM user WHERE user_key = '${key}' and user_email = '${user.email}'`
+      let user_data = await executeQuery(conn,que_user)
+      if(check_expired(user_data[0].expired_date)) return res.status(401).send(message[401]);
       const tv = JSON.parse(await get_tv_bygenre(genre_id));
       const result = tv.results;
       for (let i = 0; i < result.length; i++) {
@@ -855,8 +866,21 @@ app.get('/api/recommendedMovie',async function(req,res){//recommended Movie dari
   if(checkkey.length==0){
     return res.status(404).send("Invalid API Key!");
   }
+  let user = {}
+  //cek apakah expired
+  try{
+    user = await verify_api(key)
+  }catch(err){
+    //401 not authorized
+    return res.status(403).send(message[403])
+  }
   var temp_movie = [];
   var temp_genre = [];
+
+  let que_user = `SELECT * FROM user WHERE user_key = '${key}' and user_email = '${user.email}'`
+  let user_data = await executeQuery(conn,que_user)
+  if(check_expired(user_data[0].expired_date)) return res.status(401).send(message[401]);
+
   try {
     const tv = await executeQuery(con, `select movie_id from watchlist where watchlist_type=0`);
     for (let i = 0; i < tv.length; i++) {
@@ -893,8 +917,21 @@ app.get('/api/recommendedTvshow',async function(req,res){//recommended tv show d
   if(checkkey.length==0){
     return res.status(404).send("Invalid API Key!");
   }
+  let user = {}
+  //cek apakah expired
+  try{
+    user = await verify_api(key)
+  }catch(err){
+    //401 not authorized
+    return res.status(403).send(message[403])
+  }
   var temp_tv = [];
   var temp_genre = [];
+
+  let que_user = `SELECT * FROM user WHERE user_key = '${key}' and user_email = '${user.email}'`
+  let user_data = await executeQuery(conn,que_user)
+  if(check_expired(user_data[0].expired_date)) return res.status(401).send(message[401]);
+
   try {
     const tv = await executeQuery(con, `select movie_id from watchlist where watchlist_type=1`);
     for (let i = 0; i < tv.length; i++) {
