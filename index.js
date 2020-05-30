@@ -151,12 +151,12 @@ app.put("/api/update_profile/:email", async function (req,res) {
 
   let checkUser = await executeQuery(conn, `select * from user where user_email = '${email}'`);
   if (checkUser.length < 1) {
-      return res.status(400).send("User with that email doesn't exist!");
+      return res.status(404).send("User with that email doesn't exist!");
   }
 
   let updateEmail = await executeQuery(conn, `update user set user_password = '${password}', user_address = '${address}', user_phone = '${phone}', user_name = '${name}' where user_email = '${email}'`);
   if(updateEmail["affectedRows"] > 0){
-      return res.status(200).send("Account berhasil diubah!");
+      return res.status(200).send("Updated!");
   }
 });
 
@@ -666,8 +666,8 @@ app.post("/api/comment", async function (req, res) {
   if (!id_user) return res.status(400).send("No id_user sent!");
   if (!comment) return res.status(400).send("Comment should not be empty!");
 
-  let insertComment = await executeQuery(conn, `insert into comment values('','${id_post}','${id_user}','${comment}', CURRENT_TIMESTAMP(), 1)`);
-  return res.status(200).send("User " + id_user + " commented");
+  let insertComment = await executeQuery(conn, `insert into comment values(0,'${id_post}','${id_user}','${comment}', CURRENT_TIMESTAMP(), 1)`);
+  return res.status(200).send("Comment added");
 })
 
 // AMBIL COMMENT
