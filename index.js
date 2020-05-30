@@ -135,6 +135,8 @@ app.put("/api/update_profile/:email", async function (req,res) {
 
   if (!key) { return res.status(403).send(message[403]); }
   else {
+    console.log("Key nya: " + key);
+    
     let user = {}
     try {
       user = await verify_api(key)
