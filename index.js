@@ -809,7 +809,7 @@ app.get('/api/tvbyepisode',async function(req,res){
   }
   let checkkey = await executeQuery(con, `select * from user where user_key='${key}'`);
   if(checkkey.length==0){
-    return res.status(404).send("Invalid API Key!");
+    return res.status(403).send(message[403]);
   }
   let user = {}
   //cek apakah expired
@@ -827,15 +827,18 @@ app.get('/api/tvbyepisode',async function(req,res){
   if(!genre_id){
     return res.status(404).send("TV Show genre required!");
   }
+  if(!maxepisode){
+    return res.status(404).send("Max episode required!");
+  }
+  let que_user = `SELECT * FROM user WHERE user_key = '${key}' and user_email = '${user.email}'`
+  let user_data = await executeQuery(conn,que_user);
+  if(check_expired(user_data[0].expired_date)) return res.status(401).send(message[401]);
   try {
     if(!maxepisode){
       const movie = JSON.parse(await get_tv_bygenre(genre_id));
       const result = movie.results;
       res.status(200).send(result);
     }else{
-      let que_user = `SELECT * FROM user WHERE user_key = '${key}' and user_email = '${user.email}'`
-      let user_data = await executeQuery(conn,que_user)
-      if(check_expired(user_data[0].expired_date)) return res.status(401).send(message[401]);
       const tv = JSON.parse(await get_tv_bygenre(genre_id));
       const result = tv.results;
       for (let i = 0; i < result.length; i++) {
@@ -846,7 +849,11 @@ app.get('/api/tvbyepisode',async function(req,res){
       }
       for (let i = 0; i < temp_tv.length; i++) {
         if(parseInt(temp_tv[i].number_of_episodes)<=parseInt(maxepisode)){
-          temp_tv2.push(temp_tv[i]);
+          let obj = {
+            title : temp_tv[i].name,
+            episodes : temp_tv[i].number_of_episodes
+          }
+          temp_tv2.push(obj);
         }
       }
       res.status(200).send(temp_tv2);
@@ -854,17 +861,18 @@ app.get('/api/tvbyepisode',async function(req,res){
   } catch (error) {
     res.status(500).send(error);
   }
+  con.release();
 });
 
 app.get('/api/recommendedMovie',async function(req,res){//recommended Movie dari genre di watchlist paling banyak
   let key = req.query.key;
   let con = await getConnection(); 
   if(!key){
-    return res.status(404).send("API Key not found! Register to get your API key!");
+    return res.status(403).send("API Key not found! Register to get your API key!");
   }
   let checkkey = await executeQuery(con, `select * from user where user_key='${key}'`);
   if(checkkey.length==0){
-    return res.status(404).send("Invalid API Key!");
+    return res.status(403).send(message[403]);
   }
   let user = {}
   //cek apakah expired
@@ -872,7 +880,7 @@ app.get('/api/recommendedMovie',async function(req,res){//recommended Movie dari
     user = await verify_api(key)
   }catch(err){
     //401 not authorized
-    return res.status(403).send(message[403])
+    return res.status(401).send(message[401]);
   }
   var temp_movie = [];
   var temp_genre = [];
@@ -901,10 +909,19 @@ app.get('/api/recommendedMovie',async function(req,res){//recommended Movie dari
     });
     var maxValue = getMax(result, "value");
     const movie = JSON.parse(await get_movie_bygenre(maxValue.key));
-    res.status(200).send(movie);
+    let temp = [];
+    for (let i = 0; i < movie.results.length; i++) {
+      let obj = {
+        title : movie.results[i].original_title,
+        release_date : movie.results[i].release_date
+      }
+      temp.push(obj);
+    }
+    res.status(200).send(temp);
   } catch (error) {
     res.status(500).send(error);
   }
+  con.release();
 });
 
 app.get('/api/recommendedTvshow',async function(req,res){//recommended tv show dari genre di watchlist paling banyak
@@ -915,7 +932,7 @@ app.get('/api/recommendedTvshow',async function(req,res){//recommended tv show d
   }
   let checkkey = await executeQuery(con, `select * from user where user_key='${key}'`);
   if(checkkey.length==0){
-    return res.status(404).send("Invalid API Key!");
+    return res.status(403).send(message[403]);
   }
   let user = {}
   //cek apakah expired
@@ -952,10 +969,20 @@ app.get('/api/recommendedTvshow',async function(req,res){//recommended tv show d
     });
     var maxValue = getMax(result, "value");
     const tvshow = JSON.parse(await get_tv_bygenre(maxValue.key));
-    res.status(200).send(tvshow);
+    let temp = [];
+    for (let i = 0; i < tvshow.results.length; i++) {
+      let obj = {
+        title : tvshow.results[i].name,
+        id : tvshow.results[i].id,
+        overview : tvshow.results[i].overview
+      }
+      temp.push(obj);
+    }
+    res.status(200).send(temp);
   } catch (error) {
     res.status(500).send(error);
   }
+  con.release();
 });
 
 function getMax(arr, prop) {
@@ -977,7 +1004,7 @@ app.get('/api/trailer/:id',async function(req,res){
   }
   let checkkey = await executeQuery(con, `select * from user where user_key='${key}'`);
   if(checkkey.length==0){
-    return res.status(404).send("Invalid API Key!");
+    return res.status(403).send(message[403]);
   }
 
   let temp = [];
@@ -993,6 +1020,7 @@ app.get('/api/trailer/:id',async function(req,res){
   } catch (error) {
     res.status(500).send(error);
   }
+  con.release();
 });
 
 app.put("/api/updatepropic",uploads.single("propic"), async function (req, res) {
