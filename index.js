@@ -28,10 +28,10 @@ message[404] = {status:404,message:"Not Found"}
 message[409] = {status:409,message:"User has already registered"}
 message[426] = {status:426,message:"Upgrade Required"}
 
-//untuk mengakses .env
+// untuk mengakses .env
 require("dotenv").config();
 
-//config untuk webservicenya
+// config untuk webservicenya
 app.use(express.urlencoded({ extended: true }));
 
 //buat koneksi
@@ -244,6 +244,13 @@ app.post("/api/payment", async function (req,res) {
           let conn = await getConnection();
           let result = await executeQuery(conn, query);
           conn.release();
+
+          //tambahkan ke table transaksi
+          query = `INSERT INTO transaksi VALUES('${chargeResponse.transaction_id}','${email}',${bayar}, NOW())`;
+          conn = await getConnection();
+          result = await executeQuery(conn, query);
+          conn.release();
+
           return res.status(200).send(message[200]);
         }
         else{
@@ -255,6 +262,28 @@ app.post("/api/payment", async function (req,res) {
         console.log('Error occured:',e.message);
     });;
 
+});
+
+app.get("/api/transaction-history",async (req,res) => {
+  let email_user = req.body.email_user;
+  let password_user = req.body.password_user;
+
+  if(!email_user){ return res.status(400).send(message[400]); }
+  if(!password_user){ return res.status(400).send(message[400]); }
+
+  let conn = await getConnection();
+  let checkUser = await executeQuery(conn, `select * from user where user_email = '${email_user}' and user_password = '${password_user}'`);
+  conn.release();
+  if (checkUser.length < 1) { return res.status(404).send(message[404]); }
+
+  let query = `SELECT * FROM transaksi WHERE email_user='${email_user}'`;
+  conn = await getConnection();
+  let result = await executeQuery(conn, query);
+  conn.release();
+
+  if(Object.keys(result).length == 0) return res.status(404).send(message[404]);
+
+  res.status(200).send(result);
 });
 
 app.get("/api/paket", (req,res)=>{
