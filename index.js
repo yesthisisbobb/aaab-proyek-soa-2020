@@ -28,10 +28,10 @@ message[404] = {status:404,message:"Not Found"}
 message[409] = {status:409,message:"User has already registered"}
 message[426] = {status:426,message:"Upgrade Required"}
 
-//untuk mengakses .env
+// untuk mengakses .env
 require("dotenv").config();
 
-//config untuk webservicenya
+// config untuk webservicenya
 app.use(express.urlencoded({ extended: true }));
 
 //buat koneksi
@@ -242,6 +242,14 @@ app.post("/api/payment", async function (req,res) {
           let conn = await getConnection();
           let result = await executeQuery(conn, query);
           conn.release();
+
+          //tambahkan ke table transaksi
+          query = `INSERT INTO transaksi VALUES('${chargeResponse.transaction_id}','${email}',${bayar}, NOW())`;
+          conn = await getConnection();
+          result = await executeQuery(conn, query);
+          conn.release();
+
+
           return res.status(200).send(message[200]);
         }
         else{
