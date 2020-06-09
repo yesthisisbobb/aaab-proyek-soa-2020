@@ -724,7 +724,7 @@ app.get("/api/search/tv", async (req, res) => {
           "origin_country": r.origin_country,
           "vote_count": r.vote_count,
           "first_air_date": r.first_air_date,
-          "backdrop_path": r.backdrop_path,
+          // "backdrop_path": r.backdrop_path,
           "original_language": r.original_language,
           "id": r.id,
           "vote_average": r.vote_average,
