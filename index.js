@@ -111,17 +111,18 @@ app.post("/api/register", async (req,res)=>{
   }   ,"proyek_soa");
   
   let query = `INSERT INTO user VALUES('${user_email}','${user_password}',${user_balance},'${token}','${user_address}','${user_phone}','${user_name}', NOW() + INTERVAL 7 DAY,'')`;
+  console.log(query)
   let conn = await getConnection();
 
   try {
     let result = await executeQuery(conn, query);
     conn.release();
-
+    return res.status(201).send(message[201]);
   } catch (error) {
       console.log("error : " +error)
       return res.status(409).send(message[409])
   }
-  res.status(201).send(message[201]);
+  
 });
 
 app.put("/api/update_profile/:email", async function (req,res) {
@@ -313,7 +314,7 @@ app.post("/api/login",async function(req,res){
     let today = new Date(today_tmp)
     let today_str = today.getFullYear()+"-"+(today.getMonth()+1)+"-"+today.getDate()
     
-    // if(today>user_date) return res.status(426).send(message[426])
+    if(today>user_date) return res.status(426).send(message[426])
 
     console.log(user[0].expired_date)
     
