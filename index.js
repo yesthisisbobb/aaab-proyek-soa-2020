@@ -643,9 +643,41 @@ app.get("/api/search/movies",async (req,res)=>{
     'url': `https://api.themoviedb.org/3/search/movie?api_key=${process.env.TMDB_API_KEY}&query=${keyword}`,
   };
 
-  request(options, function (error, response) {
+  request(options, async function (error, response) {
     if (error) throw new Error(error);
-    res.status(200).send(response.body);
+    let temp = await JSON.parse(response.body);
+    console.log(temp.results);
+    
+    let endResultTemp = {
+      "page": temp.page,
+      "total_results": temp.total_results,
+      "total_pages": temp.total_pages,
+      "results": []
+    }
+    
+    temp.results.forEach(r => {
+      endResultTemp.results.push(
+        {
+          "popularity": r.popularity,
+          "vote_count": r.vote_count,
+          "video": r.video,
+          "poster_path": r.poster_path,
+          "id": r.id,
+          "adult": r.adult,
+          "backdrop_path": r.backdrop_path,
+          "original_language": r.original_language,
+          "original_title": r.original_title,
+          "genre_ids": r.genre_ids,
+          "title": r.title,
+          "vote_average": r.vote_average,
+          "overview": r.overview,
+          "release_date": r.release_date
+        }
+      );
+    });
+    console.log(endResultTemp);
+    
+    res.status(200).send(endResultTemp);
   });
 });
 
