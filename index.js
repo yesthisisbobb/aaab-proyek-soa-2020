@@ -111,17 +111,18 @@ app.post("/api/register", async (req,res)=>{
   }   ,"proyek_soa");
   
   let query = `INSERT INTO user VALUES('${user_email}','${user_password}',${user_balance},'${token}','${user_address}','${user_phone}','${user_name}', NOW() + INTERVAL 7 DAY,'')`;
+  console.log(query)
   let conn = await getConnection();
 
   try {
     let result = await executeQuery(conn, query);
     conn.release();
-
+    return res.status(201).send(message[201]);
   } catch (error) {
       console.log("error : " +error)
       return res.status(409).send(message[409])
   }
-  res.status(201).send(message[201]);
+  
 });
 
 app.put("/api/update_profile/:email", async function (req,res) {
@@ -313,7 +314,7 @@ app.post("/api/login",async function(req,res){
     let today = new Date(today_tmp)
     let today_str = today.getFullYear()+"-"+(today.getMonth()+1)+"-"+today.getDate()
     
-    // if(today>user_date) return res.status(426).send(message[426])
+    if(today>user_date) return res.status(426).send(message[426])
 
     console.log(user[0].expired_date)
     
@@ -926,7 +927,7 @@ app.get('/api/recommendedMovie',async function(req,res){//recommended Movie dari
   if(check_expired(user_data[0].expired_date)) return res.status(401).send(message[401]);
 
   try {
-    const tv = await executeQuery(con, `select movie_id from watchlist where watchlist_type=0 and email_user=${user.email}`);
+    const tv = await executeQuery(con, `select movie_id from watchlist where watchlist_type=0 and email_user='${user.email}'`);
     for (let i = 0; i < tv.length; i++) {
       temp_movie.push(await get_movie_detail(parseInt(tv[i].movie_id)));
     }
@@ -986,7 +987,7 @@ app.get('/api/recommendedTvshow',async function(req,res){//recommended tv show d
   if(check_expired(user_data[0].expired_date)) return res.status(401).send(message[401]);
 
   try {
-    const tv = await executeQuery(con, `select movie_id from watchlist where watchlist_type=1 and email_user=${user.email}`);
+    const tv = await executeQuery(con, `select movie_id from watchlist where watchlist_type=1 and email_user='${user.email}'`);
     for (let i = 0; i < tv.length; i++) {
       temp_tv.push(JSON.parse(await get_tv_detail(parseInt(tv[i].movie_id))));
     }
