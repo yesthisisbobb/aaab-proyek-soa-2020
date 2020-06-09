@@ -645,6 +645,9 @@ app.get("/api/search/movies",async (req,res)=>{
 
   request(options, function (error, response) {
     if (error) throw new Error(error);
+    if (response.body["total_results"] < 1){
+      return res.status(404).send(response.body);
+    }
     res.status(200).send(response.body);
   });
 });
