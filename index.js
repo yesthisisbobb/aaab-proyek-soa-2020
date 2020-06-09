@@ -151,7 +151,7 @@ app.put("/api/update_profile/:email", async function (req,res) {
 
   let checkUser = await executeQuery(conn, `select * from user where user_email = '${email}'`);
   if (checkUser.length < 1) {
-      return res.status(404).send("User with that email doesn't exist!");
+      return res.status(404).send("User with that email does not exist!");
   }
 
   let updateEmail = await executeQuery(conn, `update user set user_password = '${password}', user_address = '${address}', user_phone = '${phone}', user_name = '${name}' where user_email = '${email}'`);
