@@ -160,93 +160,151 @@ app.get('/api/reminderMovie',async function(req,res){
   
   });
 
-  app.get('/api/trailer/:id',async function(req,res){//albert
-    let id = req.params.id;
-    let key = req.query.key;
-    let con = await getConnection(); 
-    if(!key){
-      return res.status(404).send("API Key not found! Register to get your API key!");
-    }
-    let checkkey = await executeQuery(con, `select * from user where user_key='${key}'`);
-    if(checkkey.length==0){
-      return res.status(403).send(message[403]);
-    }
-  
-    let temp = [];
-    try {
-      const movie = JSON.parse(await getTrailer(id));
-      const result = movie.results;
-      for (let i = 0; i < result.length; i++) {
-        if(result[i].site=="YouTube"){
-          temp.push("Link : https://www.youtube.com/watch?v="+result[i].key);
-        }
-      }
-      res.status(200).send(temp);
-    } catch (error) {
-      res.status(500).send(error);
-    }
-    con.release();
-  });
+app.get('/api/trailer/:id',async function(req,res){//albert
+  let id = req.params.id;
+  let key = req.query.key;
+  let con = await getConnection(); 
+  if(!key){
+    return res.status(404).send("API Key not found! Register to get your API key!");
+  }
+  let checkkey = await executeQuery(con, `select * from user where user_key='${key}'`);
+  if(checkkey.length==0){
+    return res.status(403).send(message[403]);
+  }
 
-  app.get('/api/recommendedMovie',async function(req,res){//albert
-    let key = req.query.key;
-    let con = await getConnection(); 
-    if(!key){
-      return res.status(403).send("API Key not found! Register to get your API key!");
+  let temp = [];
+  try {
+    const movie = JSON.parse(await getTrailer(id));
+    const result = movie.results;
+    for (let i = 0; i < result.length; i++) {
+      if(result[i].site=="YouTube"){
+        temp.push("Link : https://www.youtube.com/watch?v="+result[i].key);
+      }
     }
-    let checkkey = await executeQuery(con, `select * from user where user_key='${key}'`);
-    if(checkkey.length==0){
-      return res.status(403).send(message[403]);
+    res.status(200).send(temp);
+  } catch (error) {
+    res.status(500).send(error);
+  }
+  con.release();
+});
+
+app.get('/api/recommendedMovie',async function(req,res){//albert
+  let key = req.query.key;
+  let con = await getConnection(); 
+  if(!key){
+    return res.status(403).send("API Key not found! Register to get your API key!");
+  }
+  let checkkey = await executeQuery(con, `select * from user where user_key='${key}'`);
+  if(checkkey.length==0){
+    return res.status(403).send(message[403]);
+  }
+  let user = {}
+  //cek apakah expired
+  try{
+    user = await verify_api(key)
+  }catch(err){
+    //401 not authorized
+    return res.status(401).send(message[401]);
+  }
+  var temp_movie = [];
+  var temp_genre = [];
+
+  let que_user = `SELECT * FROM user WHERE user_key = '${key}' and user_email = '${user.email}'`
+  let user_data = await executeQuery(conn,que_user)
+  if(check_expired(user_data[0].expired_date)) return res.status(401).send(message[401]);
+
+  try {
+    const tv = await executeQuery(con, `select movie_id from watchlist where watchlist_type=0 and email_user='${user.email}'`);
+    for (let i = 0; i < tv.length; i++) {
+      temp_movie.push(await get_movie_detail(parseInt(tv[i].movie_id)));
     }
-    let user = {}
-    //cek apakah expired
-    try{
-      user = await verify_api(key)
-    }catch(err){
-      //401 not authorized
-      return res.status(401).send(message[401]);
+    for (let i = 0; i < temp_movie.length; i++) {
+      for (let j = 0; j < temp_movie[i].genres.length; j++) {
+        temp_genre.push(temp_movie[i].genres[j]);
+      }
     }
-    var temp_movie = [];
-    var temp_genre = [];
+    var occurences = temp_genre.reduce(function (r, row) {
+      r[row.id] = ++r[row.id] || 1;
+      return r;
+    }, {});
+    
+    var result = Object.keys(occurences).map(function (key) {
+        return { key: key, value: occurences[key] };
+    });
+    var maxValue = getMax(result, "value");
+    const movie = JSON.parse(await get_movie_bygenre(maxValue.key));
+    let temp = [];
+    for (let i = 0; i < movie.results.length; i++) {
+      let obj = {
+        title : movie.results[i].original_title,
+        release_date : movie.results[i].release_date
+      }
+      temp.push(obj);
+    }
+    res.status(200).send(temp);
+  } catch (error) {
+    res.status(500).send(error);
+  }
+  con.release();
+});
+
+// ADD WATCHLIST MOVIES - sion
+app.post("/api/watchlist/movies", async (req,res)=>{
+  let email_user = req.body.user_email;
+  let movie_id = req.body.movie_id;
   
-    let que_user = `SELECT * FROM user WHERE user_key = '${key}' and user_email = '${user.email}'`
-    let user_data = await executeQuery(conn,que_user)
-    if(check_expired(user_data[0].expired_date)) return res.status(401).send(message[401]);
-  
-    try {
-      const tv = await executeQuery(con, `select movie_id from watchlist where watchlist_type=0 and email_user='${user.email}'`);
-      for (let i = 0; i < tv.length; i++) {
-        temp_movie.push(await get_movie_detail(parseInt(tv[i].movie_id)));
-      }
-      for (let i = 0; i < temp_movie.length; i++) {
-        for (let j = 0; j < temp_movie[i].genres.length; j++) {
-          temp_genre.push(temp_movie[i].genres[j]);
-        }
-      }
-      var occurences = temp_genre.reduce(function (r, row) {
-        r[row.id] = ++r[row.id] || 1;
-        return r;
-      }, {});
-      
-      var result = Object.keys(occurences).map(function (key) {
-          return { key: key, value: occurences[key] };
-      });
-      var maxValue = getMax(result, "value");
-      const movie = JSON.parse(await get_movie_bygenre(maxValue.key));
-      let temp = [];
-      for (let i = 0; i < movie.results.length; i++) {
-        let obj = {
-          title : movie.results[i].original_title,
-          release_date : movie.results[i].release_date
-        }
-        temp.push(obj);
-      }
-      res.status(200).send(temp);
-    } catch (error) {
-      res.status(500).send(error);
-    }
-    con.release();
-  });
+  let key = req.query.key;
+  //cek kalau token tidak disertakan
+  if(key == "" || key == null || typeof key === 'undefined'){
+    return res.status(403).send(message[403]);
+  }
+
+  let query = `INSERT INTO watchlist VALUES(NULL,'${email_user}','${movie_id}',0)`;
+  let conn = await getConnection();
+  let result = await executeQuery(conn, query);
+  conn.release();
+
+  res.status(200).send("Add to Watchlist");
+});
+
+// GET WATCHLIST MOVIES -sion
+app.get("/api/watchlist/movies",async (req,res)=>{
+  let user_email = req.query.user;
+  let key = req.query.key;
+
+  //cek kalau token tidak disertakan
+  if(key == "" || key == null || typeof key === 'undefined'){
+    return res.status(403).send(message[403]);
+  }
+
+  let query = `SELECT movie_id FROM watchlist WHERE email_user='${user_email}' AND watchlist_type = 0`;
+  let conn = await getConnection();
+  let result = await executeQuery(conn, query);
+  conn.release();
+
+  if(Object.keys(result).length == 0) return res.status(404).send(message[404]);
+
+  res.status(200).send(result);
+});
+
+// DELETE WATCHLIST MOVIES -sion
+app.delete("/api/watchlist/movies",async (req,res)=>{
+  let email_user = req.body.user_email;
+  let movie_id = req.body.movie_id;
+
+  let key = req.query.key;
+  //cek kalau token tidak disertakan
+  if(key == "" || key == null || typeof key === 'undefined'){
+    return res.status(403).send(message[403]);
+  }
+
+  let query = `DELETE FROM watchlist WHERE movie_id='${movie_id}' AND email_user='${email_user}'`;
+  let conn = await getConnection();
+  let result = await executeQuery(conn, query);
+  conn.release();
+
+  res.status(200).send("Delete From Watchlist");
+});
 
 
 

@@ -295,6 +295,64 @@ app.get("/api/reminderTV",async function(req,res){
     con.release();
   });
 
+// ADD WATCHLIST TV - sion
+app.post("/api/watchlist/tv", async (req,res)=>{
+  let email_user = req.body.user_email;
+  let movie_id = req.body.movie_id;
+  
+  let key = req.query.key;
+  //cek kalau token tidak disertakan
+  if(key == "" || key == null || typeof key === 'undefined'){
+    return res.status(403).send(message[403]);
+  }
+
+  let query = `INSERT INTO watchlist VALUES(NULL,'${email_user}','${movie_id}',1)`;
+  let conn = await getConnection();
+  let result = await executeQuery(conn, query);
+  conn.release();
+
+  res.status(200).send("Add to Watchlist");
+});
+
+// GET WATCHLIST TV - sion
+app.get("/api/watchlist/tv",async (req,res)=>{
+  let user_email = req.query.user;
+  let key = req.query.key;
+
+  //cek kalau token tidak disertakan
+  if(key == "" || key == null || typeof key === 'undefined'){
+    return res.status(403).send(message[403]);
+  }
+
+  let query = `SELECT movie_id as tv_id FROM watchlist WHERE email_user='${user_email}' AND watchlist_type = 1`;
+  let conn = await getConnection();
+  let result = await executeQuery(conn, query);
+  conn.release();
+
+  if(Object.keys(result).length == 0) return res.status(404).send(message[404]);
+
+  res.status(200).send(result);
+});
+
+// DELETE WATCHLIST TV - sion
+app.delete("/api/watchlist/tv",async (req,res)=>{
+  let email_user = req.body.user_email;
+  let movie_id = req.body.movie_id;
+
+  let key = req.query.key;
+  //cek kalau token tidak disertakan
+  if(key == "" || key == null || typeof key === 'undefined'){
+    return res.status(403).send(message[403]);
+  }
+
+  let query = `DELETE FROM watchlist WHERE movie_id='${movie_id}' AND email_user='${email_user}'`;
+  let conn = await getConnection();
+  let result = await executeQuery(conn, query);
+  conn.release();
+
+  res.status(200).send("Delete From Watchlist");
+});
+
   function check_expired(date){//alfon
     let user_date = new Date(date)
     let today_tmp = Date.now();
