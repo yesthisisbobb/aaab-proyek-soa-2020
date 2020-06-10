@@ -152,7 +152,7 @@ app.put("/api/update_profile/:email", async function (req,res) {
 
   let checkUser = await executeQuery(conn, `select * from user where user_email = '${email}'`);
   if (checkUser.length < 1) {
-      return res.status(404).send("User with that email doesn't exist!");
+      return res.status(404).send("User with that email does not exist!");
   }
 
   let updateEmail = await executeQuery(conn, `update user set user_password = '${password}', user_address = '${address}', user_phone = '${phone}', user_name = '${name}' where user_email = '${email}'`);
@@ -643,9 +643,41 @@ app.get("/api/search/movies",async (req,res)=>{
     'url': `https://api.themoviedb.org/3/search/movie?api_key=${process.env.TMDB_API_KEY}&query=${keyword}`,
   };
 
-  request(options, function (error, response) {
+  request(options, async function (error, response) {
     if (error) throw new Error(error);
-    res.status(200).send(response.body);
+    let temp = await JSON.parse(response.body);
+    console.log(temp.results);
+    
+    let endResultTemp = {
+      "page": temp.page,
+      "total_results": temp.total_results,
+      "total_pages": temp.total_pages,
+      "results": []
+    }
+    
+    temp.results.forEach(r => {
+      endResultTemp.results.push(
+        {
+          "popularity": r.popularity,
+          "vote_count": r.vote_count,
+          "video": r.video,
+          "poster_path": r.poster_path,
+          "id": r.id,
+          "adult": r.adult,
+          "backdrop_path": r.backdrop_path,
+          "original_language": r.original_language,
+          "original_title": r.original_title,
+          "genre_ids": r.genre_ids,
+          "title": r.title,
+          "vote_average": r.vote_average,
+          "overview": r.overview,
+          "release_date": r.release_date
+        }
+      );
+    });
+    console.log(endResultTemp);
+    
+    res.status(200).send(endResultTemp);
   });
 });
 
@@ -670,9 +702,40 @@ app.get("/api/search/tv", async (req, res) => {
     'url': `https://api.themoviedb.org/3/search/tv?api_key=${process.env.TMDB_API_KEY}&query=${keyword}`,
   };
 
-  request(options, function (error, response) {
+  request(options, async function (error, response) {
     if (error) throw new Error(error);
-    res.status(200).send(response.body);
+    let temp = await JSON.parse(response.body);
+    console.log(temp.results);
+
+    let endResultTemp = {
+      "page": temp.page,
+      "total_results": temp.total_results,
+      "total_pages": temp.total_pages,
+      "results": []
+    }
+
+    temp.results.forEach(r => {
+      endResultTemp.results.push(
+        {
+          "original_name": r.original_name,
+          "genre_ids": r.genre_ids,
+          "name": r.name,
+          "popularity": r.popularity,
+          "origin_country": r.origin_country,
+          "vote_count": r.vote_count,
+          "first_air_date": r.first_air_date,
+          // "backdrop_path": r.backdrop_path,
+          "original_language": r.original_language,
+          "id": r.id,
+          "vote_average": r.vote_average,
+          "overview": r.overview,
+          "poster_path": r.poster_path
+        }
+      );
+    });
+    console.log(endResultTemp);
+
+    res.status(200).send(endResultTemp);
   });
 });
 
