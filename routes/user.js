@@ -37,6 +37,36 @@ function getConnection() {
     });
 }
 
+
+const storage = multer.diskStorage({
+    destination: function (req, file, callback) {
+        callback(null, "./public/uploads");
+    },
+    filename: function (req, file, callback) {
+        const filename = file.originalname.split(".");
+        const extension = filename[1];
+        callback(null, Date.now() + "." + extension);
+    }
+});
+
+const uploads = multer({
+    storage: storage,
+    fileFilter: function (req, file, callback) {
+        checkFileType(file, callback);
+    }
+});
+
+function checkFileType(file, callback) {
+    const filetypes = /jpeg|jpg|png/;
+    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = filetypes.test(file.mimetype);
+    if (mimetype && extname) {
+        return callback(null, true);
+    } else {
+        callback('Invalid Format!!!');
+    }
+}
+
 //message return
 let message = []
 message[200] = { status: 200, message: "OK" }
@@ -166,7 +196,7 @@ app.get('/api/checkExpirationDate',async function(req,res){
 
 });  
 
-app.put("/api/updatepropic",uploads.single("propic"), async function (req, res) {//albert
+app.put("/api/updatepropic", uploads.single("propic"), async function (req, res) {//albert
     const token = req.header("x-auth-token");
     const filename = req.file.filename.toString();
     if(!filename){

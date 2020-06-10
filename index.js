@@ -102,6 +102,7 @@ app.use("/", tvRouter);
 app.use("/", commentRouter);
 app.use("/", RatingRouter);
 
+// DIBAWAH INI FUNCTION-FUNCTION LEGACY
 //asc
 app.get('/api/test_geocode',async function(req,res){
   let address = 'Green Semanggi Mangrove'
