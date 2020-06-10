@@ -1,6 +1,12 @@
-const express = require("express");
-const jwt = require("jsonwebtoken");
+const express = require('express');
 const mysql = require('mysql');
+const jwt = require('jsonwebtoken');
+const request = require('request');
+const multer = require('multer');
+const path = require('path');
+const midtransClient = require('midtrans-client');
+const isNumber = require('is-number');
+
 
 const app = express.Router();
 
@@ -102,7 +108,95 @@ app.get("/api/search/movies", async (req, res) => {
     });
 });
 
-function verify_api(key) {
+
+//GET REMINDER BASED ON USER'S WATCHLIST = ALFON
+app.get('/api/reminderMovie',async function(req,res){
+    let key = req.query.key
+    if(!key) return res.status(403).send(message[403])
+  
+    let user = {}
+    //cek apakah expired
+    try{
+      user = await verify_api(key)
+    }catch(err){
+      //401 not authorized
+      return res.status(403).send(message[403])
+    }
+    console.log(user)
+    const conn = await getConnection()
+  
+    //check authorization
+    let que_user = `SELECT * FROM user WHERE user_key = '${key}' and user_email = '${user.email}'`
+    let user_data = await executeQuery(conn,que_user)
+    if(check_expired(user_data[0].expired_date)) return res.status(401).send(message[401]);
+    
+    
+    let que = `SELECT movie_id FROM watchlist WHERE email_user = '${user.email}' and watchlist_type=0`
+    const movies_id = await executeQuery(conn,que)
+  
+    console.log(movies_id)
+    let hasil = []
+    for(let i = 0;i < movies_id.length;i++){
+      const tmp = await get_movie_detail(movies_id[i].movie_id)
+      let release_date = new Date(tmp.release_date)
+      let today = new Date(Date.now())
+      console.log(release_date)
+      //console.log(today)
+      if(today>release_date) console.log("released")
+      else{
+        let obj = {
+          title : tmp.original_title,
+          genres : tmp.genres,
+          release_date : tmp.release_date
+        }
+        hasil.push(obj)
+      }
+      
+    }
+    
+    console.log(hasil)
+  
+    return res.status(200).send(hasil)
+  
+  });
+
+
+
+
+
+  function get_movie_detail(id){ //alfon
+    return new Promise(function(resolve,reject){
+      key = process.env.TMDB_API_KEY;
+      let options = {
+        'method': 'GET',
+        'url': `https://api.themoviedb.org/3/movie/${id}?api_key=${key}`,
+      };
+      request(options, async function (error, response) { 
+          if(error) reject({"error":error})
+          else{
+              try {
+                  resolve(await JSON.parse(response.body));
+              } catch (error) {
+                  reject({error:error})
+              }   
+          }
+      });
+    })
+  }
+
+
+  function check_expired(date){ //alfon
+    let user_date = new Date(date)
+    let today_tmp = Date.now();
+    let today = new Date(today_tmp)
+    let today_str = today.getFullYear()+"-"+(today.getMonth()+1)+"-"+today.getDate()
+    
+    if(today>user_date) return true
+    return false
+  
+  }
+
+function verify_api(key) { //alfon
     return new Promise(function (resolve, reject) {
         let user = {}
         //cek apakah expired

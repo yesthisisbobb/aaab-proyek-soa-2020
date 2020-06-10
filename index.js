@@ -94,42 +94,15 @@ const userRouter = require("./routes/user");
 const moviesRouter = require("./routes/movies");
 const tvRouter = require("./routes/tv");
 const commentRouter = require("./routes/comment");
+const RatingRouter = require("./routes/rating");
 
 app.use("/", userRouter);
 app.use("/", moviesRouter);
 app.use("/", tvRouter);
 app.use("/", commentRouter);
+app.use("/", RatingRouter);
 
-app.post("/api/register", async (req,res)=>{
-  let user_email = req.body.user_email;
-  let user_password = req.body.user_password;
-  let user_balance = 0;
-  let user_key = hash();
-  let user_address = req.body.user_address;
-  let user_phone = req.body.user_phone;
-  let user_name = req.body.user_name;
-  
-  if(!user_email||!user_password||!user_address||!user_phone||!user_name) return res.status(400).send(message[400])
-  
-  const token = jwt.sign({    
-      "email":user_email,
-      "name" : user_name
-  }   ,"proyek_soa");
-  
-  let query = `INSERT INTO user VALUES('${user_email}','${user_password}',${user_balance},'${token}','${user_address}','${user_phone}','${user_name}', NOW() + INTERVAL 7 DAY,'')`;
-  console.log(query)
-  let conn = await getConnection();
 
-  try {
-    let result = await executeQuery(conn, query);
-    conn.release();
-    return res.status(201).send(message[201]);
-  } catch (error) {
-      console.log("error : " +error)
-      return res.status(409).send(message[409])
-  }
-  
-});
 
 app.post("/api/payment", async function (req,res) {
     let email = req.body.email;
@@ -272,209 +245,10 @@ app.post('/respon', (req,res)=>{
   return res.status(200).send("success");
 });
 
-app.post("/api/login",async function(req,res){
-    const conn = await getConnection()
-    const email = req.body.email
-    const password = req.body.password
-    let que = `SELECT * FROM user WHERE user_email = '${email}' and user_password = '${password}'`
-    const user = await executeQuery(conn,que)
-    if(user.length == 0) return res.status(400).send(message[400])
-    let user_date = new Date(user[0].expired_date)
-    let today_tmp = Date.now();
-    let today = new Date(today_tmp)
-    let today_str = today.getFullYear()+"-"+(today.getMonth()+1)+"-"+today.getDate()
-    
-    if(today>user_date) return res.status(426).send(message[426])
-
-    console.log(user[0].expired_date)
-    
-
-    return res.status(200).send({"key" : user[0].user_key})
-});
-
-app.get('/api/checkExpirationDate',async function(req,res){
-    //let email = req.body.email
-    //let password = req.body.password
-    let key = req.query.key
-    // let token = req.header("x-auth-token")
-    if(!key)return res.status(400).send(message[400])
-    //if(!token) return res.status(400).send("invalid key")
-
-    const conn = await getConnection()
-    let que_user = `SELECT * FROM user WHERE user_key = '${key}'`
-    let user = await executeQuery(conn,que_user)
-    if(user.length==0) return res.status(400).send(message[400])
-    let token = user[0].user_key
-    let exp_date = new Date(user[0].expired_date)
-    let now = new Date(Date.now())
-    let compare = Math.abs(exp_date - now);
-    let day = Math.round((compare/1000)/(3600*24))
-    console.log("exp date : "+exp_date.getDate()+"-"+exp_date.getMonth()+"-"+exp_date.getFullYear())
-    console.log("today : "+now.getDate()+"-"+now.getMonth()+"-"+now.getFullYear())
-    return res.status(200).send({status:200,message:day+" days"})
 
 
-});  
-
-//GET REMINDER BASED ON USER'S WATCHLIST
-app.get('/api/reminderMovie',async function(req,res){
-  let key = req.query.key
-  if(!key) return res.status(403).send(message[403])
-
-  let user = {}
-  //cek apakah expired
-  try{
-    user = await verify_api(key)
-  }catch(err){
-    //401 not authorized
-    return res.status(403).send(message[403])
-  }
-  console.log(user)
-  const conn = await getConnection()
-
-  //check authorization
-  let que_user = `SELECT * FROM user WHERE user_key = '${key}' and user_email = '${user.email}'`
-  let user_data = await executeQuery(conn,que_user)
-  if(check_expired(user_data[0].expired_date)) return res.status(401).send(message[401]);
-  
-  
-  let que = `SELECT movie_id FROM watchlist WHERE email_user = '${user.email}' and watchlist_type=0`
-  const movies_id = await executeQuery(conn,que)
-
-  console.log(movies_id)
-  let hasil = []
-  for(let i = 0;i < movies_id.length;i++){
-    const tmp = await get_movie_detail(movies_id[i].movie_id)
-    let release_date = new Date(tmp.release_date)
-    let today = new Date(Date.now())
-    console.log(release_date)
-    //console.log(today)
-    if(today>release_date) console.log("released")
-    else{
-      let obj = {
-        title : tmp.original_title,
-        genres : tmp.genres,
-        release_date : tmp.release_date
-      }
-      hasil.push(obj)
-    }
-    
-  }
-  
-  console.log(hasil)
-
-  return res.status(200).send(hasil)
-
-});
-
-//untuk kasih rating 
-app.post('/api/rating/:type/:id',async function(req,res){
-    let type = req.params.type
-    let id = req.params.id
-    let key = req.query.key
-    let score = req.body.score
-    const conn = await getConnection();
-
-    //cek kelengkapan field
-    if(!id||!type||!score||!id) return res.status(400).send(message[400])
-    if(type<0||type>1 || score > 10 || score < 1) return res.status(400).send(message[400])
-    //cek kalau score bukan angka
-    if(!(/^\d+$/.test(score))) return res.status(400).send(message[400])
-    
-    //cek user
-    let user = {}
-    try {
-      user = await verify_api(key)
-      console.log(user)
-    } catch (error) {
-      return res.status(403).send(message[403])
-    }
-    
-    //insert rating
-    try {
-      let que_cari = `SELECT * FROM rating WHERE rating_user_email = '${user.email}' and rating_movie_id = ${id}`
-      let hasil_cari =  await executeQuery(conn,que_cari)
-      if(hasil_cari.length>0){
-        let que_upd = `UPDATE rating SET rating_score = ${score} WHERE rating_id = ${hasil_cari[0].rating_id}`
-        let hasil_update = await executeQuery(conn,que_upd)
-        if(hasil_update.affectedRows==0) return res.status(500).send(message[500])
-        return res.status(200).send(message[200])
-      }
-      else{
-        let que = `INSERT INTO rating(rating_score,rating_user_email,rating_movie_id,rating_type) VALUES(${score},'${user.email}',${id},${type})`
-      
-        const hasil_insert = await executeQuery(conn,que)
-        if(hasil_insert.affectedRows == 0) return res.status(500).send(message[500])
-        return res.status(201).send(message[201])
-      }
-    } catch (error) {
-        console.log(error)
-        return res.status(500).send(message[500])
-    } 
-});  
-
-//GET today's tv show update 
-app.get("/api/reminderTV",async function(req,res){
-  let key = req.query.key
-  if(!key) return res.status(403).send(message[403])
-
-  let user = {}
-  //cek apakah expired
-  try{
-    user = await verify_api(key)
-  }catch(err){
-    //401 not authorized
-    return res.status(403).send(message[403])
-  }
-
-  
-  console.log(user)
-  const conn = await getConnection()
-
-  //check authorization
-  let que_user = `SELECT * FROM user WHERE user_key = '${key}' and user_email = '${user.email}'`
-  let user_data = await executeQuery(conn,que_user)
-  if(check_expired(user_data[0].expired_date)) return res.status(401).send(message[401])
 
 
-  let que = `SELECT movie_id FROM watchlist WHERE email_user = '${user.email}' and watchlist_type=1`
-  const tv_id = await executeQuery(conn,que)
-
-  console.log(tv_id)
-  let hasil = []
-  for(let i = 0;i < tv_id.length;i++){
-    const tmp = await JSON.parse(await get_tv_detail(tv_id[i].movie_id))
-    let today = new Date(Date.now())
-    let obj = {}
-    
-    if(tmp.next_episode_to_air){
-      let date = new Date(tmp.next_episode_to_air.air_date)
-      let eps = tmp.next_episode_to_air.episode_number  
-      if(date==today){
-        obj = {
-          title : tmp.name,
-          episode : eps,
-          description : tmp.name+` episode ${eps} is currently on air`
-        }
-      }
-      else if(date>today){
-        let compare = Math.abs(date - today);
-        let day = Math.round((compare/1000)/(3600*24))
-        obj = {
-          title : tmp.name,
-          episode : eps,
-          description : tmp.name+` episode ${eps} will be airing in ${day} day(s)`
-        }
-      }
-    }
-
-    console.log()
-    hasil.push(obj)
-  }
-  
-  return res.status(200).send(hasil)
-
-});
 
 // ADD WATCHLIST MOVIES
 app.post("/api/watchlist/movies", async (req,res)=>{
@@ -969,25 +743,7 @@ function search_movie_by_id(id){
   })
 }
 
-function get_movie_detail(id){
-  return new Promise(function(resolve,reject){
-    key = process.env.TMDB_API_KEY;
-    let options = {
-      'method': 'GET',
-      'url': `https://api.themoviedb.org/3/movie/${id}?api_key=${key}`,
-    };
-    request(options, async function (error, response) { 
-        if(error) reject({"error":error})
-        else{
-            try {
-                resolve(await JSON.parse(response.body));
-            } catch (error) {
-                reject({error:error})
-            }   
-        }
-    });
-  })
-}
+
 
 //untuk dapat Latitute Longitute
 function get_location(location){
@@ -1027,16 +783,7 @@ function verify_api(key){
 
 }
 
-function check_expired(date){
-  let user_date = new Date(date)
-  let today_tmp = Date.now();
-  let today = new Date(today_tmp)
-  let today_str = today.getFullYear()+"-"+(today.getMonth()+1)+"-"+today.getDate()
-  
-  if(today>user_date) return true
-  return false
 
-}
 
 //listener
 app.listen(process.env.PORT || 3000, function (req,res) { console.log("Listening on port 3000..."); });

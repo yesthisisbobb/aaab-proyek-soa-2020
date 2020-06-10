@@ -1,6 +1,11 @@
-const express = require("express");
-const jwt = require("jsonwebtoken");
+const express = require('express');
 const mysql = require('mysql');
+const jwt = require('jsonwebtoken');
+const request = require('request');
+const multer = require('multer');
+const path = require('path');
+const midtransClient = require('midtrans-client');
+const isNumber = require('is-number');
 
 const app = express.Router();
 
@@ -147,7 +152,7 @@ app.delete("/api/comment/:id", async function (req, res) {
     }
 });
 
-function verify_api(key) {
+function verify_api(key) { //alfon
     return new Promise(function (resolve, reject) {
         let user = {}
         //cek apakah expired

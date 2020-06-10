@@ -1,6 +1,11 @@
-const express = require("express");
-const jwt = require("jsonwebtoken");
+const express = require('express');
 const mysql = require('mysql');
+const jwt = require('jsonwebtoken');
+const request = require('request');
+const multer = require('multer');
+const path = require('path');
+const midtransClient = require('midtrans-client');
+const isNumber = require('is-number');
 
 const app = express.Router();
 
@@ -102,7 +107,96 @@ app.get("/api/search/tv", async (req, res) => {
 });
 
 
-function verify_api(key) {
+
+//GET UPCOMING TV EPISODE  =  ALFON
+app.get("/api/reminderTV",async function(req,res){
+    let key = req.query.key
+    if(!key) return res.status(403).send(message[403])
+  
+    let user = {}
+    //cek apakah expired
+    try{
+      user = await verify_api(key)
+    }catch(err){
+      //401 not authorized
+      return res.status(403).send(message[403])
+    }
+  
+    
+    console.log(user)
+    const conn = await getConnection()
+  
+    //check authorization
+    let que_user = `SELECT * FROM user WHERE user_key = '${key}' and user_email = '${user.email}'`
+    let user_data = await executeQuery(conn,que_user)
+    if(check_expired(user_data[0].expired_date)) return res.status(401).send(message[401])
+  
+  
+    let que = `SELECT movie_id FROM watchlist WHERE email_user = '${user.email}' and watchlist_type=1`
+    const tv_id = await executeQuery(conn,que)
+  
+    console.log(tv_id)
+    let hasil = []
+    for(let i = 0;i < tv_id.length;i++){
+      const tmp = await JSON.parse(await get_tv_detail(tv_id[i].movie_id))
+      let today = new Date(Date.now())
+      let obj = {}
+      
+      if(tmp.next_episode_to_air){
+        let date = new Date(tmp.next_episode_to_air.air_date)
+        let eps = tmp.next_episode_to_air.episode_number  
+        if(date==today){
+          obj = {
+            title : tmp.name,
+            episode : eps,
+            description : tmp.name+` episode ${eps} is currently on air`
+          }
+        }
+        else if(date>today){
+          let compare = Math.abs(date - today);
+          let day = Math.round((compare/1000)/(3600*24))
+          obj = {
+            title : tmp.name,
+            episode : eps,
+            description : tmp.name+` episode ${eps} will be airing in ${day} day(s)`
+          }
+        }
+      }
+  
+      console.log()
+      hasil.push(obj)
+    }
+    
+    return res.status(200).send(hasil)
+  
+  });
+  
+  function check_expired(date){//alfon
+    let user_date = new Date(date)
+    let today_tmp = Date.now();
+    let today = new Date(today_tmp)
+    let today_str = today.getFullYear()+"-"+(today.getMonth()+1)+"-"+today.getDate()
+    
+    if(today>user_date) return true
+    return false
+  
+  }
+  function get_tv_detail(id){//albert
+    return new Promise(function(resolve,reject){
+      key = process.env.TMDB_API_KEY;
+      let options = {
+        'method': 'GET',
+        'url': `https://api.themoviedb.org/3/tv/${id}?api_key=${key}`,
+      };
+        request(options, function (error, response) { 
+          if (error) reject(new Error(error));
+          else resolve(response.body);
+      });
+    })
+  }
+
+
+function verify_api(key) {//alfon
     return new Promise(function (resolve, reject) {
         let user = {}
         //cek apakah expired
