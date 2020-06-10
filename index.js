@@ -780,8 +780,8 @@ app.delete("/api/comment/:id", async function (req, res) {
   }
 });
 
-//asc
-function getTrailer(id){
+
+function getTrailer(id){//albert
   return new Promise(function(resolve,reject){
       var options = {
           'method': 'GET',
@@ -794,7 +794,7 @@ function getTrailer(id){
   })  
 }
 
-function get_tv_detail(id){
+function get_tv_detail(id){//albert
   return new Promise(function(resolve,reject){
     key = process.env.TMDB_API_KEY;
     let options = {
@@ -808,7 +808,7 @@ function get_tv_detail(id){
   })
 }
 
-function get_tv_bygenre(genre_id){
+function get_tv_bygenre(genre_id){//albert
   return new Promise(function(resolve,reject){
     key = process.env.TMDB_API_KEY;
     let options = {
@@ -823,7 +823,7 @@ function get_tv_bygenre(genre_id){
   })
 }
 
-function get_movie_bygenre(genre_id){
+function get_movie_bygenre(genre_id){//albert
   return new Promise(function(resolve,reject){
     key = process.env.TMDB_API_KEY;
     let options = {
@@ -838,7 +838,7 @@ function get_movie_bygenre(genre_id){
   })
 }
 
-app.get('/api/tvbyepisode',async function(req,res){
+app.get('/api/tvbyepisode',async function(req,res){//albert
   let key = req.query.key;
   let con = await getConnection(); 
   if(!key){
@@ -901,7 +901,7 @@ app.get('/api/tvbyepisode',async function(req,res){
   con.release();
 });
 
-app.get('/api/recommendedMovie',async function(req,res){//recommended Movie dari genre di watchlist paling banyak
+app.get('/api/recommendedMovie',async function(req,res){//albert
   let key = req.query.key;
   let con = await getConnection(); 
   if(!key){
@@ -961,7 +961,7 @@ app.get('/api/recommendedMovie',async function(req,res){//recommended Movie dari
   con.release();
 });
 
-app.get('/api/recommendedTvshow',async function(req,res){//recommended tv show dari genre di watchlist paling banyak
+app.get('/api/recommendedTvshow',async function(req,res){//albert
   let key = req.query.key;
   let con = await getConnection(); 
   if(!key){
@@ -1022,7 +1022,7 @@ app.get('/api/recommendedTvshow',async function(req,res){//recommended tv show d
   con.release();
 });
 
-function getMax(arr, prop) {
+function getMax(arr, prop) {//albert
   var max;
   for (var i=0 ; i<arr.length ; i++) {
       if (max == null || parseInt(arr[i][prop]) > parseInt(max[prop])){
@@ -1032,7 +1032,7 @@ function getMax(arr, prop) {
   return max;
 }
 
-app.get('/api/trailer/:id',async function(req,res){
+app.get('/api/trailer/:id',async function(req,res){//albert
   let id = req.params.id;
   let key = req.query.key;
   let con = await getConnection(); 
@@ -1060,7 +1060,7 @@ app.get('/api/trailer/:id',async function(req,res){
   con.release();
 });
 
-app.put("/api/updatepropic",uploads.single("propic"), async function (req, res) {
+app.put("/api/updatepropic",uploads.single("propic"), async function (req, res) {//albert
   const token = req.header("x-auth-token");
   const filename = req.file.filename.toString();
   if(!filename){
@@ -1068,12 +1068,12 @@ app.put("/api/updatepropic",uploads.single("propic"), async function (req, res) 
   }
   let user = {};
   if(!token){
-      return res.status(401).send("Token not found");
+      return res.status(400).send("Token not found");
   }
   try{
        user = jwt.verify(token,"proyek_soa");
   }catch(err){
-      return res.status(401).send("Token Invalid");
+      return res.status(400).send("Token Invalid");
   }
   try {
     await executeQuery(conn, `update user set user_profile='${filename}' where user_email='${user.email}'`);
