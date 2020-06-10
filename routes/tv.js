@@ -171,6 +171,130 @@ app.get("/api/reminderTV",async function(req,res){
   
   });
   
+  app.get('/api/recommendedTvshow',async function(req,res){//albert
+    let key = req.query.key;
+    let con = await getConnection(); 
+    if(!key){
+      return res.status(404).send("API Key not found! Register to get your API key!");
+    }
+    let checkkey = await executeQuery(con, `select * from user where user_key='${key}'`);
+    if(checkkey.length==0){
+      return res.status(403).send(message[403]);
+    }
+    let user = {}
+    //cek apakah expired
+    try{
+      user = await verify_api(key)
+    }catch(err){
+      //401 not authorized
+      return res.status(403).send(message[403])
+    }
+    var temp_tv = [];
+    var temp_genre = [];
+  
+    let que_user = `SELECT * FROM user WHERE user_key = '${key}' and user_email = '${user.email}'`
+    let user_data = await executeQuery(conn,que_user)
+    if(check_expired(user_data[0].expired_date)) return res.status(401).send(message[401]);
+  
+    try {
+      const tv = await executeQuery(con, `select movie_id from watchlist where watchlist_type=1 and email_user='${user.email}'`);
+      for (let i = 0; i < tv.length; i++) {
+        temp_tv.push(JSON.parse(await get_tv_detail(parseInt(tv[i].movie_id))));
+      }
+      for (let i = 0; i < temp_tv.length; i++) {
+        for (let j = 0; j < temp_tv[i].genres.length; j++) {
+          temp_genre.push(temp_tv[i].genres[j]);
+        }
+      }
+      var occurences = temp_genre.reduce(function (r, row) {
+        r[row.id] = ++r[row.id] || 1;
+        return r;
+      }, {});
+      
+      var result = Object.keys(occurences).map(function (key) {
+          return { key: key, value: occurences[key] };
+      });
+      var maxValue = getMax(result, "value");
+      const tvshow = JSON.parse(await get_tv_bygenre(maxValue.key));
+      let temp = [];
+      for (let i = 0; i < tvshow.results.length; i++) {
+        let obj = {
+          title : tvshow.results[i].name,
+          id : tvshow.results[i].id,
+          overview : tvshow.results[i].overview
+        }
+        temp.push(obj);
+      }
+      res.status(200).send(temp);
+    } catch (error) {
+      res.status(500).send(error);
+    }
+    con.release();
+  });
+
+  app.get('/api/tvbyepisode',async function(req,res){//albert
+    let key = req.query.key;
+    let con = await getConnection(); 
+    if(!key){
+      return res.status(404).send("API Key not found! Register to get your API key!");
+    }
+    let checkkey = await executeQuery(con, `select * from user where user_key='${key}'`);
+    if(checkkey.length==0){
+      return res.status(403).send(message[403]);
+    }
+    let user = {}
+    //cek apakah expired
+    try{
+      user = await verify_api(key)
+    }catch(err){
+      //401 not authorized
+      return res.status(403).send(message[403])
+    }
+    let maxepisode = req.query.maxepisode;
+    let temp_id = [];
+    let temp_tv = [];
+    let temp_tv2 = [];
+    let genre_id = req.query.genre;
+    if(!genre_id){
+      return res.status(404).send("TV Show genre required!");
+    }
+    if(!maxepisode){
+      return res.status(404).send("Max episode required!");
+    }
+    let que_user = `SELECT * FROM user WHERE user_key = '${key}' and user_email = '${user.email}'`
+    let user_data = await executeQuery(conn,que_user);
+    if(check_expired(user_data[0].expired_date)) return res.status(401).send(message[401]);
+    try {
+      if(!maxepisode){
+        const movie = JSON.parse(await get_tv_bygenre(genre_id));
+        const result = movie.results;
+        res.status(200).send(result);
+      }else{
+        const tv = JSON.parse(await get_tv_bygenre(genre_id));
+        const result = tv.results;
+        for (let i = 0; i < result.length; i++) {
+          temp_id.push(parseInt(result[i].id));
+        }
+        for (let i = 0; i < temp_id.length; i++) {
+          temp_tv.push(JSON.parse(await get_tv_detail(temp_id[i])));
+        }
+        for (let i = 0; i < temp_tv.length; i++) {
+          if(parseInt(temp_tv[i].number_of_episodes)<=parseInt(maxepisode)){
+            let obj = {
+              title : temp_tv[i].name,
+              episodes : temp_tv[i].number_of_episodes
+            }
+            temp_tv2.push(obj);
+          }
+        }
+        res.status(200).send(temp_tv2);
+      }
+    } catch (error) {
+      res.status(500).send(error);
+    }
+    con.release();
+  });
+
   function check_expired(date){//alfon
     let user_date = new Date(date)
     let today_tmp = Date.now();
@@ -187,6 +311,31 @@ app.get("/api/reminderTV",async function(req,res){
       let options = {
         'method': 'GET',
         'url': `https://api.themoviedb.org/3/tv/${id}?api_key=${key}`,
+      };
+        request(options, function (error, response) { 
+          if (error) reject(new Error(error));
+          else resolve(response.body);
+      });
+    })
+  }
+
+  function getMax(arr, prop) {//albert
+    var max;
+    for (var i=0 ; i<arr.length ; i++) {
+        if (max == null || parseInt(arr[i][prop]) > parseInt(max[prop])){
+          max = arr[i];
+        }
+    }
+    return max;
+  }
+
+  function get_tv_bygenre(genre_id){//albert
+    return new Promise(function(resolve,reject){
+      key = process.env.TMDB_API_KEY;
+      let options = {
+        'method': 'GET',
+        'url': `
+        https://api.themoviedb.org/3/discover/tv?api_key=${key}&sort_by=popularity.desc&with_genres=${genre_id}`,
       };
         request(options, function (error, response) { 
           if (error) reject(new Error(error));

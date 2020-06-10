@@ -166,7 +166,28 @@ app.get('/api/checkExpirationDate',async function(req,res){
 
 });  
 
-
+app.put("/api/updatepropic",uploads.single("propic"), async function (req, res) {//albert
+    const token = req.header("x-auth-token");
+    const filename = req.file.filename.toString();
+    if(!filename){
+      return res.status(404).send("File Required");
+    }
+    let user = {};
+    if(!token){
+        return res.status(400).send("Token not found");
+    }
+    try{
+         user = jwt.verify(token,"proyek_soa");
+    }catch(err){
+        return res.status(400).send("Token Invalid");
+    }
+    try {
+      await executeQuery(conn, `update user set user_profile='${filename}' where user_email='${user.email}'`);
+      return res.status(200).send("Profile Picture Updated");
+    } catch (error) {
+      return res.status(400).send(error);
+    }
+  });
 
 
 
