@@ -72,17 +72,17 @@ app.put("/api/update_profile/:email", async function (req, res) {
     }
 
     if (!email) {
-        return res.status(400).send("No email reference!");
+        return res.status(400).send(message[400]);
     }
 
     let checkUser = await executeQuery(conn, `select * from user where user_email = '${email}'`);
     if (checkUser.length < 1) {
-        return res.status(404).send("User with that email does not exist!");
+        return res.status(404).send(message[404]);
     }
 
     let updateEmail = await executeQuery(conn, `update user set user_password = '${password}', user_address = '${address}', user_phone = '${phone}', user_name = '${name}' where user_email = '${email}'`);
     if (updateEmail["affectedRows"] > 0) {
-        return res.status(200).send("Updated!");
+        return res.status(200).send(message[200]);
     }
 });
 
