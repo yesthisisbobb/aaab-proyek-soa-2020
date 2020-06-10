@@ -1,6 +1,47 @@
 const express = require("express");
+const jwt = require("jsonwebtoken");
+const mysql = require('mysql');
 
 const app = express.Router();
+
+//buat koneksi
+const conn = mysql.createPool({
+    database: process.env.DB_NAME,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    host: process.env.DB_HOST
+});
+
+//function untuk melakukan execute query
+function executeQuery(conn, query) {
+    return new Promise(function (resolve, reject) {
+        conn.query(query, function (err, result) {
+            if (err) { reject(err); }
+            else { resolve(result); }
+        });
+    });
+}
+
+function getConnection() {
+    return new Promise(function (resolve, reject) {
+        conn.getConnection(function (err, conn) {
+            if (err) { reject(err); }
+            else { resolve(conn); }
+        });
+    });
+}
+
+//message return
+let message = []
+message[200] = { status: 200, message: "OK" }
+message[201] = { status: 201, message: "Created" }
+message[500] = { status: 500, message: "Internal Error" }
+message[400] = { status: 400, message: "Bad Request" }
+message[401] = { status: 401, message: "Unauthorized" }
+message[403] = { status: 403, message: "Invalid Key" }
+message[404] = { status: 404, message: "Not Found" }
+message[409] = { status: 409, message: "User has already registered" }
+message[426] = { status: 426, message: "Upgrade Required" }
 
 // ID COMMENT (A.I.), ID POST, ID USER, ISI COMMENT, COMMENTED AT, STATUS COMMENT
 // POST COMMENT -Bobby
@@ -105,5 +146,19 @@ app.delete("/api/comment/:id", async function (req, res) {
         return res.status(400).send(error);
     }
 });
+
+function verify_api(key) {
+    return new Promise(function (resolve, reject) {
+        let user = {}
+        //cek apakah expired
+        try {
+            user = jwt.verify(key, "proyek_soa");
+            resolve(user)
+        } catch (err) {
+            //401 not authorized
+            reject({ error: err })
+        }
+    })
+}
 
 module.exports = app;
