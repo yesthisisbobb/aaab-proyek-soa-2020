@@ -59,12 +59,12 @@ app.post("/api/comment", async function (req, res) {
         }
     }
 
-    if (!id_post) return res.status(400).send("No id_post sent!");
-    if (!id_user) return res.status(400).send("No id_user sent!");
-    if (!comment) return res.status(400).send("Comment should not be empty!");
+    if (!id_post) return res.status(400).send(message[400]);
+    if (!id_user) return res.status(400).send(message[400]);
+    if (!comment) return res.status(400).send(message[400]);
 
     let insertComment = await executeQuery(conn, `insert into comment values(0,'${id_post}','${id_user}','${comment}', CURRENT_TIMESTAMP(), 1)`);
-    return res.status(200).send("Comment added");
+    return res.status(200).send(message[200]);
 })
 
 // AMBIL COMMENT -Bobby
