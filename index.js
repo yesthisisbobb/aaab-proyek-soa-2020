@@ -90,13 +90,15 @@ function checkFileType(file,callback){
   }
 }
 
-const commentRouter = require("./routes/comment");
+const userRouter = require("./routes/user");
 const moviesRouter = require("./routes/movies");
 const tvRouter = require("./routes/tv");
+const commentRouter = require("./routes/comment");
 
-app.use("/", commentRouter);
+app.use("/", userRouter);
 app.use("/", moviesRouter);
 app.use("/", tvRouter);
+app.use("/", commentRouter);
 
 app.post("/api/register", async (req,res)=>{
   let user_email = req.body.user_email;
@@ -127,43 +129,6 @@ app.post("/api/register", async (req,res)=>{
       return res.status(409).send(message[409])
   }
   
-});
-
-// UPDATE PROFILE -Bobby
-app.put("/api/update_profile/:email", async function (req,res) {
-  let email = req.params.email;
-  let password = req.body.password;
-  let address = req.body.address;
-  let phone = req.body.phone;
-  let name = req.body.name;
-
-  let key = req.query.key;
-
-  if (!key) { return res.status(403).send(message[403]); }
-  else {
-    console.log("Key nya: " + key);
-    
-    let user = {}
-    try {
-      user = await verify_api(key)
-    } catch (err) {
-      return res.status(403).send(message[403])
-    }
-  }
-
-  if (!email) {
-      return res.status(400).send("No email reference!");
-  }
-
-  let checkUser = await executeQuery(conn, `select * from user where user_email = '${email}'`);
-  if (checkUser.length < 1) {
-      return res.status(404).send("User with that email does not exist!");
-  }
-
-  let updateEmail = await executeQuery(conn, `update user set user_password = '${password}', user_address = '${address}', user_phone = '${phone}', user_name = '${name}' where user_email = '${email}'`);
-  if(updateEmail["affectedRows"] > 0){
-      return res.status(200).send("Updated!");
-  }
 });
 
 app.post("/api/payment", async function (req,res) {
