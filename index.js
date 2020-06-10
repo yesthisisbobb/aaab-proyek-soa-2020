@@ -92,7 +92,7 @@ function checkFileType(file,callback){
 
 const commentRouter = require("./routes/comment");
 
-app.get("/", commentRouter);
+app.use("/", commentRouter);
 
 app.post("/api/register", async (req,res)=>{
   let user_email = req.body.user_email;
@@ -125,6 +125,7 @@ app.post("/api/register", async (req,res)=>{
   
 });
 
+// UPDATE PROFILE -Bobby
 app.put("/api/update_profile/:email", async function (req,res) {
   let email = req.params.email;
   let password = req.body.password;
@@ -622,7 +623,7 @@ app.delete("/api/watchlist/tv",async (req,res)=>{
   res.status(200).send("Delete From Watchlist");
 });
 
-// SEARCH MOVIE
+// SEARCH MOVIE -Bobby
 app.get("/api/search/movies",async (req,res)=>{
   let keyword = req.query.keyword;
 
@@ -681,7 +682,7 @@ app.get("/api/search/movies",async (req,res)=>{
   });
 });
 
-// GET TV SERIES
+// GET TV SERIES -Bobby
 app.get("/api/search/tv", async (req, res) => {
   let keyword = req.query.keyword;
 
