@@ -102,8 +102,34 @@ app.post('/api/rating/:type/:id',async function(req,res){
     } 
 });  
 
-app.get("/api/rating/:id",function(req,res){
-
+//GET RATING = ALFON
+app.get("/api/rating/:id",async function(req,res){
+  let id = req.params.id
+  let key = req.query.key
+  let user = {}
+  try {
+    user = await verify_api(key)
+    console.log(user)
+  } catch (error) {
+    return res.status(403).send(message[403])
+  }
+  
+  let que = `SELECT * FROM rating WHERE rating_movie_id = ${id}`
+  const conn = await getConnection()
+  try {
+    const hasil = await executeQuery(conn,que)
+    if(hasil.length == 0)return res.status(200).send({movie_id:id,movie_rating:0})
+    let avg = 0
+    for(let i=0;i<hasil.length;i++){
+      avg+=hasil[i].rating_score
+    }
+    avg /= hasil.length
+    console.log(avg)
+    return res.status(200).send({movie_id:id,movie_rating:0})
+  } catch (error) {
+    console.log(error)
+    return res.status(500).send(message[500])
+  }
 })
 
 function verify_api(key){ //alfon
